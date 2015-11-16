@@ -38,9 +38,10 @@ class DataCollection(DirManager):
     self.paudio = pyaudio.PyAudio()
     self.name = None
 
+
   def recordAudio(self, emotion):
       self.WAVE_OUTPUT_FILENAME = "trainingData/"+emotion+"/"+self.name+".wav"
-      stream = self.paudio.open(format=self.FORMAT,
+      self.stream = self.paudio.open(format=self.FORMAT,
                 channels=self.CHANNELS,
                 rate=self.RATE,
                 input=True,
@@ -51,14 +52,14 @@ class DataCollection(DirManager):
       frames = []
 
       for i in range(0, int(self.RATE / self.CHUNK * self.RECORD_SECONDS)):
-          data = stream.read(self.CHUNK)
+          data = self.stream.read(self.CHUNK)
           frames.append(data)
 
       print("* done recording")
 
-      stream.stop_stream()
-      stream.close()
-      self.paudio.terminate()
+      self.stream.stop_stream()
+      self.stream.close()
+        
 
       wf = wave.open(self.WAVE_OUTPUT_FILENAME, 'wb')
       wf.setnchannels(self.CHANNELS)
@@ -86,6 +87,7 @@ class DataCollection(DirManager):
       self.recordAudio(emotion)
       os.system('clear')
 
+    self.paudio.terminate()
 
     print 'Thank you! Data Collection Complete'
 
