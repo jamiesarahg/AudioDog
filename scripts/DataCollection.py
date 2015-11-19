@@ -93,7 +93,7 @@ class DataCollection(DirManager):
 
 
 if __name__ == '__main__':
-  emotions = ["come", "stop", "goodBoy"]
+  emotions = ["come", "stop", "goodBoy", "fetch"]
   objectRecording = DataCollection(emotions)
   objectRecording.run(emotions)
   # for item in emotions:
