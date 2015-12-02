@@ -8,9 +8,9 @@ class Prediction(object):
 	def __init__(self):
 		self.testMFCCs=[]
 
-	def PrepData (self, name, emotions):
+	def PrepData (self, filename):
 		data = cd.DataIntake()
-		filename = 'trainingData/'+emotion+'/'+name+'.wav'
+		
 		self.testMFCCs = data.CollectTrainingData(filename)
 
   def predict(self, emotions, modelsDict):
@@ -26,8 +26,8 @@ class Prediction(object):
 
 if __name__ == '__main__':
   prediction = Prediction()
-  emotions = ["come", "stop", "goodBoy", "fetch"]
-  prediction.PrepData('Jamie_Gorson', emotions)
+  filename = 'trainingData/come/Jamie_Gorson.wav'
+  prediction.PrepData(filename)
   prediction.predict(emotions, modelsDict)  #TODO- figure out how to pass in models
 
 
