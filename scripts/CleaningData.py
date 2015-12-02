@@ -1,6 +1,5 @@
 import numpy as np
 import pyaudio
-import wave
 import os
 import scipy
 import librosa
@@ -8,27 +7,27 @@ from features import mfcc
 from features import logfbank
 import scipy.io.wavfile as wav
 import matplotlib.pyplot as plot
-# from sklearn.mixture import GMM
+from sklearn.mixture import GMM
 
 class DataIntake(object):
   ''' Exracts MFCCs from audio files
   '''
   def __init__(self):
-    self.trainingDataX = []
-    self.trainingDataY = []
+    self.trainingDataX = {}
     self.y_current = None
     self.sr_current = None
     self.emotionMap = {}
     self.come = []
+    self.modelsDict={}
 
 
-  def CreateEmotionMap (self, emotions):
-    ''' Creates a map from emotions to integers
+  # def CreateEmotionMap (self, emotions):
+  #   ''' Creates a map from emotions to integers
 
-        emotions: list of emotions taken in by user
-    '''
-    for i in (0,len(emotions): 
-        self.emotionMap[emotions[i]] = i
+  #       emotions: list of emotions taken in by user
+  #   '''
+  #   for i in range(0,len(emotions)): 
+  #     self.emotionMap[emotions[i]] = i
 
   def CleanData(self, filename):
     ''' Cleans data by removing the time before and after the user speaks
@@ -58,7 +57,7 @@ class DataIntake(object):
     self.y = y
     self.sr = sr
 
-  def MFCCextraction(self, target, dataType): 
+  def MFCCextraction(self, emotion, dataType): 
     '''  Extracts MFCCs from audio file
 
           target: emotion being targeted as an int
@@ -67,8 +66,11 @@ class DataIntake(object):
     #calculate MFCCs
     mfcc = librosa.feature.mfcc(y=self.y, sr=self.sr, n_mfcc=13)
     if dataType == 'training':
-      self.trainingDataX.append(mfcc)
-      self.trainingDataY.append(int(target))
+      if emotion in self.trainingDataX.keys():
+        self.trainingDataX[emotion].append(mfcc)
+      else:
+        self.trainingDataX[emotion] = mfcc
+        print emotion
 
   def PlotMFCC(self):
     ''' Visualizes the MFCCs 
@@ -86,28 +88,46 @@ class DataIntake(object):
         name: name of user speaking
         emotions: list of emotions taken in by user
     '''
-    self.CreateEmotionMap(emotions)
     for emotion in emotions:
-      emotNum = self.emotionMap[emotion]
+      # emotNum = self.emotionMap[emotion]
       filename = 'trainingData/'+emotion+'/'+name+'.wav'
       self.CleanData(filename)
-      self.MFCCextraction(emotNum, 'training')
+      self.MFCCextraction(emotion, 'training')
     print self.trainingDataX
-    print self.trainingDataY
 
-  # def Fit TrainingData (self):
-  #   for c in mfcc:
-  #     self.come.append("come")
-  #   print self.come
-  #   gmm = GMM()
-  #   gmm.fit(mfcc, y=self.come)
+
+  def CreateModelDictionary(self, emotions):
+    for i in range (0,len(emotions)):
+      # print emotions[i]
+      if emotions[i] not in self.modelsDict.keys():
+        model = self.CreateModel(emotions[i])
+        self.modelsDict[emotions[i]] = model
+
+
+  def CreateModel(self, emotion):
+    model = GMM().fit(self.trainingDataX[emotion])
+    return model
+
+  # def predict(self, emotions, testMFCCs):
+  #   bestEmotion = ""
+  #   bestScore = 0
+  #   for emotion in emotions: 
+  #     score = modelsDict[emotion].score(testMFCCs)
+  #     if score > bestScore:
+  #       bestScore=score
+  #       bestEmotion = emotion
+
 
 
 
 if __name__ == '__main__':
   extract = DataIntake()
   emotions = ["come", "stop", "goodBoy", "fetch"]
+  # extract.CreateEmotionMap(emotions)
+  print extract.emotionMap
   extract.CollectTrainingData('Jamie_Gorson', emotions)
+  extract.CreateModelDictionary(emotions)
+  # extract.TrainingData()
   # plot.figure(1)
   # i=1
   # name = 'Jamie_Gorson'
