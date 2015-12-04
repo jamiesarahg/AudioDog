@@ -21,15 +21,6 @@ class DataIntake(object):
     self.modelsDict={}
     self.emotions = emotions
 
-
-  # def CreateEmotionMap (self, emotions):
-  #   ''' Creates a map from emotions to integers
-
-  #       emotions: list of emotions taken in by user
-  #   '''
-  #   for i in range(0,len(emotions)): 
-  #     self.emotionMap[emotions[i]] = i
-
   def CleanData(self, filename):
     ''' Cleans data by removing the time before and after the user speaks
 
@@ -107,17 +98,31 @@ class DataIntake(object):
       self.MFCCextraction(emotion, 'testing')
 
   def CreateModel(self, emotion):
+    ''' fits GMM model to training data for an emotion
+
+        emotion: corresponding emotion to train to
+    '''
 
     model =GMM()
     model.fit(self.trainingDataX[emotion].transpose())
     return model
 
   def CreateModelDictionary(self):
+    ''' Builds gausian model for each emotion in self.emotions'''
+
     for i in range(0,len(self.emotions)):
         model = self.CreateModel(self.emotions[i])
         self.modelsDict[self.emotions[i]] = model
 
   def predict(self, testMFCC):
+    ''' Predicts emotion from self.emotions of input soundclip
+
+        testMFCC: extracted MFCCs from a short soundclip
+
+        returns: 
+          bestEmotion: predicted emotion based on scores for matching of each emotion
+          bestScore: the score that predicted that emotion
+    '''
     bestEmotion = ""
     bestScore = -10000
     for emotion in self.emotions: 
@@ -130,6 +135,10 @@ class DataIntake(object):
     return bestEmotion, bestScore
 
   def crossValidation(self, names):
+    ''' Runs a cross validation on input sound files. Uses one test sample each time
+
+        names: list of strings, each the filename of the set of soundclips to be used in the training or testing
+    '''
     for i in range(len(names)):
       for j in range(len(names)):
         if i == j:
@@ -151,7 +160,7 @@ class DataIntake(object):
 
 if __name__ == '__main__':
   emotions = ["come", "stop", "goodBoy", "fetch"]
-  names = ['Jamie_Gorson', 'Jamie_Gorson1','Jamie_Gorson2', 'Jamie_Gorson3']
+  names = ['Jamie_Gorson', 'Jamie_Gorson1','Jamie_Gorson2', 'Jamie_Gorson3', 'Susie_Grimshaw', 'Susie_Grimshaw1', 'Susie_Grimshaw2', 'Susan_Grimshaw3']
 
   extract = DataIntake(emotions)
   extract.crossValidation(names)
