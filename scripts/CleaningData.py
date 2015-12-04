@@ -21,7 +21,7 @@ class DataIntake(object):
     self.modelsDict={}
     self.emotions = emotions
 
-  def CleanData(self, filename):
+  def cleanData(self, filename):
     ''' Cleans data by removing the time before and after the user speaks
 
         filename: name of audio file
@@ -49,7 +49,7 @@ class DataIntake(object):
     self.y = y
     self.sr = sr
 
-  def MFCCextraction(self, emotion, dataType): 
+  def mfccExtraction(self, emotion, dataType): 
     '''  Extracts MFCCs from audio file
 
           target: emotion being targeted as an int
@@ -65,7 +65,7 @@ class DataIntake(object):
     if dataType == 'testing':
         self.testingDataX[emotion] = mfcc
 
-  def PlotMFCC(self):
+  def plotMFCC(self):
     ''' Visualizes the MFCCs 
     '''
     #plot results
@@ -75,7 +75,7 @@ class DataIntake(object):
     plot.title(emotion)
 
 
-  def CollectTrainingData(self, name):
+  def collectTrainingData(self, name):
     ''' Extracts MFCCs from audio files
 
         name: name of user speaking
@@ -83,10 +83,10 @@ class DataIntake(object):
     '''
     for emotion in self.emotions:
       filename = 'trainingData/'+emotion+'/'+name+'.wav'
-      self.CleanData(filename)
-      self.MFCCextraction(emotion, 'training')
+      self.cleanData(filename)
+      self.mfccExtraction(emotion, 'training')
 
-  def CollectTestingData(self, name):
+  def collectTestingData(self, name):
     ''' Extracts MFCCs from audio files
 
         name: name of user speaking
@@ -94,10 +94,10 @@ class DataIntake(object):
     '''
     for emotion in self.emotions:
       filename = 'trainingData/'+emotion+'/'+name+'.wav'
-      self.CleanData(filename)
-      self.MFCCextraction(emotion, 'testing')
+      self.cleanData(filename)
+      self.mfccExtraction(emotion, 'testing')
 
-  def CreateModel(self, emotion):
+  def createModel(self, emotion):
     ''' fits GMM model to training data for an emotion
 
         emotion: corresponding emotion to train to
@@ -107,11 +107,11 @@ class DataIntake(object):
     model.fit(self.trainingDataX[emotion].transpose())
     return model
 
-  def CreateModelDictionary(self):
+  def createModelDictionary(self):
     ''' Builds gausian model for each emotion in self.emotions'''
 
     for i in range(0,len(self.emotions)):
-        model = self.CreateModel(self.emotions[i])
+        model = self.createModel(self.emotions[i])
         self.modelsDict[self.emotions[i]] = model
 
   def predict(self, testMFCC):
@@ -142,11 +142,11 @@ class DataIntake(object):
     for i in range(len(names)):
       for j in range(len(names)):
         if i == j:
-          self.CollectTestingData(names[j])
+          self.collectTestingData(names[j])
         else:
-          self.CollectTrainingData(names[j])
+          self.collectTrainingData(names[j])
 
-      self.CreateModelDictionary()
+      self.createModelDictionary()
 
       for emotion in self.emotions:
         bestEmotion, bestScore = self.predict(self.testingDataX[emotion].transpose())
