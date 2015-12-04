@@ -12,13 +12,14 @@ from sklearn.mixture import GMM
 class DataIntake(object):
   ''' Exracts MFCCs from audio files
   '''
-  def __init__(self):
+  def __init__(self, emotions):
     self.trainingDataX = {}
-    self.y_current = None
-    self.sr_current = None
-    self.emotionMap = {}
+    self.testingDataX = {}
+    self.y = None
+    self.sr = None
     self.come = []
     self.modelsDict={}
+    self.emotions = emotions
 
 
   # def CreateEmotionMap (self, emotions):
@@ -67,10 +68,11 @@ class DataIntake(object):
     mfcc = librosa.feature.mfcc(y=self.y, sr=self.sr, n_mfcc=13)
     if dataType == 'training':
       if emotion in self.trainingDataX.keys():
-        self.trainingDataX[emotion].append(mfcc)
+        self.trainingDataX[emotion] = np.hstack((self.trainingDataX[emotion], mfcc))
       else:
         self.trainingDataX[emotion] = mfcc
-        print emotion
+    if dataType == 'testing':
+        self.testingDataX[emotion] = mfcc
 
   def PlotMFCC(self):
     ''' Visualizes the MFCCs 
@@ -82,63 +84,74 @@ class DataIntake(object):
     plot.title(emotion)
 
 
-  def CollectTrainingData(self, name, emotions):
+  def CollectTrainingData(self, name):
     ''' Extracts MFCCs from audio files
 
         name: name of user speaking
         emotions: list of emotions taken in by user
     '''
-    for emotion in emotions:
-      # emotNum = self.emotionMap[emotion]
+    for emotion in self.emotions:
       filename = 'trainingData/'+emotion+'/'+name+'.wav'
       self.CleanData(filename)
       self.MFCCextraction(emotion, 'training')
-    print self.trainingDataX
 
+  def CollectTestingData(self, name):
+    ''' Extracts MFCCs from audio files
 
-  def CreateModelDictionary(self, emotions):
-    for i in range (0,len(emotions)):
-      # print emotions[i]
-      if emotions[i] not in self.modelsDict.keys():
-        model = self.CreateModel(emotions[i])
-        self.modelsDict[emotions[i]] = model
-
+        name: name of user speaking
+        emotions: list of emotions taken in by user
+    '''
+    for emotion in self.emotions:
+      filename = 'trainingData/'+emotion+'/'+name+'.wav'
+      self.CleanData(filename)
+      self.MFCCextraction(emotion, 'testing')
 
   def CreateModel(self, emotion):
-    model = GMM().fit(self.trainingDataX[emotion])
+
+    model =GMM()
+    model.fit(self.trainingDataX[emotion].transpose())
     return model
 
-  # def predict(self, emotions, testMFCCs):
-  #   bestEmotion = ""
-  #   bestScore = 0
-  #   for emotion in emotions: 
-  #     score = modelsDict[emotion].score(testMFCCs)
-  #     if score > bestScore:
-  #       bestScore=score
-  #       bestEmotion = emotion
+  def CreateModelDictionary(self):
+    for i in range(0,len(self.emotions)):
+        model = self.CreateModel(self.emotions[i])
+        self.modelsDict[self.emotions[i]] = model
 
+  def predict(self, testMFCC):
+    bestEmotion = ""
+    bestScore = -10000
+    for emotion in self.emotions: 
+      self.modelsDict[emotion].predict(testMFCC)
+      score = self.modelsDict[emotion].score(testMFCC)
+      aveScore = sum(score)/len(score)
+      if aveScore > bestScore:
+        bestScore = aveScore
+        bestEmotion = emotion
+    return bestEmotion, bestScore
+
+  def crossValidation(self, names):
+    for i in range(len(names)):
+      for j in range(len(names)):
+        if i == j:
+          self.CollectTestingData(names[j])
+        else:
+          self.CollectTrainingData(names[j])
+
+      self.CreateModelDictionary()
+
+      for emotion in self.emotions:
+        bestEmotion, bestScore = self.predict(self.testingDataX[emotion].transpose())
+        print 'result', emotion, bestEmotion, bestScore
+      
+      self.trainingDataX = {}
+      self.testingDataX = {}
+      self.modelsDict = {}
 
 
 
 if __name__ == '__main__':
-  extract = DataIntake()
   emotions = ["come", "stop", "goodBoy", "fetch"]
-  # extract.CreateEmotionMap(emotions)
-  print extract.emotionMap
-  extract.CollectTrainingData('Jamie_Gorson', emotions)
-  extract.CreateModelDictionary(emotions)
-  # extract.TrainingData()
-  # plot.figure(1)
-  # i=1
-  # name = 'Jamie_Gorson'
-  
+  names = ['Jamie_Gorson', 'Jamie_Gorson1','Jamie_Gorson2', 'Jamie_Gorson3']
 
-  # plot.figure(2)
-  # plot.title('Susie')
-  # name = 'Susie_Grimshaw'
-  # i=1
-  # for emotion in emotions:
-  #   filename = 'trainingData/'+emotion+'/'+name+'.wav'
-  #   extract.MFCCextraction('Susie_Grimshaw', emotion, str(i))
-  #   i+=1
-  # plot.show()
+  extract = DataIntake(emotions)
+  extract.crossValidation(names)
