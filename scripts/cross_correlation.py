@@ -9,6 +9,10 @@ test_2 = numpy.array([0, 0, 0, 0, 0, 3, 3, 3, 6, 6, 8, 9, 6, 6, 6, 6, 3, 3, 3])
 
 
 class AudioProcessor(object):
+	'''
+	Calculates the timeshift between two audio signals, and aligns them. 
+	'''
+
 	def __init__(self):
 		pass
 
@@ -18,7 +22,8 @@ class AudioProcessor(object):
 
 	def calculate_timeshift(self, signals):
 		'''
-
+		Calculates timeshift (in units, not seconds) by cross-correlating
+		the two audio signals.
 		'''
 		signal_a = signals[0]
 		signal_b = signals[1]
@@ -55,6 +60,14 @@ class AudioProcessor(object):
 		# print time_shift
 
 	def align_signals(self, signals, timeshifts):
+		'''
+		Aligns the two audio signals using the timeshifts calculated in
+		calculate_timeshift(). Uses either addition method or subtraction
+		method:
+		 - The addition method adds zeroes to the first signal.
+		 - The subtraction method removes "premature" data from the 
+		 last signal.
+		'''
 		print "align_signals"
 
 		# Determine which signal is the lagged signal
@@ -83,6 +96,21 @@ class AudioProcessor(object):
 		shifted = numpy.delete(last, del_indeces, 0)
 		print "		", shifted
 		print "		", signals[numpy.argmin(timeshifts)]
+
+
+class Localizer(object):
+	'''
+	Locates the origin of the audio source.
+	'''
+	def __init__(self, samp_rate):
+		self.samp_rate = samp_rate
+
+	# Determine time between samples via sample rate
+	# Convert time delay into an angle using speed of sound, distance
+	# of microphones, and trig.
+		# c = 340.29 m / s
+
+
 
 
 	
