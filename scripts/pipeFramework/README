@@ -1,0 +1,5 @@
+Compile program with:
+g++ printer.cpp -o printer -lsndfile
+
+Run test with:
+arecord -r 176400 -c 2 -t wav | ./printer
