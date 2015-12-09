@@ -2,6 +2,7 @@ import numpy
 import pyaudio
 import wave
 import os
+import subprocess
 
 class DirManager(object):
   """handles image directory
@@ -32,18 +33,16 @@ class DataCollection(DirManager):
     self.mkdirs(emotions)
     self.CHUNK = 1024
     self.FORMAT = pyaudio.paInt16
-    self.CHANNELS = 2
-    self.RATE = 44100
     self.RECORD_SECONDS = 2
     self.paudio = pyaudio.PyAudio()
     self.name = None
 
 
-  def recordAudio(self, emotion):
-      self.WAVE_OUTPUT_FILENAME = "trainingData/"+emotion+"/"+self.name+".wav"
+  def recordAudioCompMic(self, emotion):
+      WAVE_OUTPUT_FILENAME = "trainingData/"+emotion+"/"+self.name+".wav"
       self.stream = self.paudio.open(format=self.FORMAT,
-                channels=self.CHANNELS,
-                rate=self.RATE,
+                channels=2,
+                rate=44100,
                 input=True,
                 frames_per_buffer=self.CHUNK)
 
@@ -51,7 +50,7 @@ class DataCollection(DirManager):
 
       frames = []
 
-      for i in range(0, int(self.RATE / self.CHUNK * self.RECORD_SECONDS)):
+      for i in range(0, int(44100 / self.CHUNK * self.RECORD_SECONDS)):
           data = self.stream.read(self.CHUNK)
           frames.append(data)
 
@@ -59,14 +58,29 @@ class DataCollection(DirManager):
 
       self.stream.stop_stream()
       self.stream.close()
-        
 
-      wf = wave.open(self.WAVE_OUTPUT_FILENAME, 'wb')
-      wf.setnchannels(self.CHANNELS)
+
+      wf = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
+      wf.setnchannels(2)
       wf.setsampwidth(self.paudio.get_sample_size(self.FORMAT))
-      wf.setframerate(self.RATE)
+      wf.setframerate(44100)
       wf.writeframes(b''.join(frames))
       wf.close()
+
+  def recordAudioNeatoMic(self, emotion):
+    output_filename = "trainingData/"+emotion+"/"+self.name+".wav"
+    frameRate = 176400
+    channels = 2
+    wf = wave.open(output_filename, 'wb')
+    wf.setnchannels(channels)
+    wf.setsampwidth(2)
+    wf.setframerate(frameRate)
+    
+    record = ["arecord", "-t", "wav", "r", frameRate, "-c", channels, "-f", "SI6_LE", "-d", self.RECORD_SECONDS]
+    p = subprocess.Popen(record, stdout=subprocess.PIPE)
+    wf.writeframes(b''.join(frames))
+    wf.close()
+
 
   def run(self, emotions):
     print "Type your unique name"
@@ -84,7 +98,7 @@ class DataCollection(DirManager):
       print emotion
       print "When you are ready press enter"
       raw_input()
-      self.recordAudio(emotion)
+      self.recordAudioNeatoMic(emotion)
       os.system('clear')
 
     self.paudio.terminate()
