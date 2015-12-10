@@ -189,8 +189,10 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
+find_package (PythonLibs 2.7 EXACT)
+
 include_directories(include ${catkin_INCLUDE_DIRS})
 
 add_executable(master_node src/master_node.cpp)
-target_link_libraries(master_node ${catkin_LIBRARIES})
-add_dependencies(master_node sensor_msgs geometry_msgs neato_node)
+target_link_libraries(master_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
+add_dependencies(master_node sensor_msgs geometry_msgs neato_node python2.7)
