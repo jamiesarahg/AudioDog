@@ -14,11 +14,12 @@ class Runner(object):
 	def __init__(self):
 		ap = AudioProcessor()
     	lc = Localizer(cirrus_sample_rate, mic_dist)
-		# Robot states
+		# Robot commands
 
 
 		self.done = False
-		self.state = "LISTEN" #
+		self.command = "LISTEN" #
+		self.follow_state = "LOCALIZE" # / "MOVE"
 		self.is_distanced = False
 		self.angle_correct = False					# True: angled towards src
 		
@@ -45,18 +46,22 @@ class Runner(object):
 			while not self.done and not rospy.is_shutdown():
 
 				# Run
-				if self.state = "LISTEN":
+				if self.command = "LISTEN":
 					pass
-				elif self.state = "FOLLOW":
+				elif self.command = "FOLLOW":
+					# Assume source is stationary
+					if self.follow_state == "LOCALIZE":
+						self.calc_src_angle()
+					self.
+						
+				elif self.command = "STOP":
 					pass
-				elif self.state = "STOP":
-					pass
-				elif self.state = "GOODBOY":
+				elif self.command = "GOODBOY":
 					pass
 				else:
 					pass
 
-				self.localize_audio_src()
+				self.calc_src_angle()
     			# to do
 
 				r.sleep()
@@ -100,7 +105,9 @@ class Runner(object):
 		pass
 
 	def calc_error_angular(self):
-
+		'''
+		Calculates angle from point in space.
+		'''
 		# Calculates error_angular - difference in degrees
 		# if angle > 180:
 		# 	self.error_angular = angle - 270.0
@@ -130,7 +137,7 @@ class Runner(object):
 		twist.angular.z = self.angular
 		self.pub.publish(twist)
 
-	def localize_audio_src(self):
+	def calc_src_angle(self):
 		timeshifts = self.ap.calculate_timeshift([test_1, test_2])
 		timeshift = abs(timeshifts[0])
     	self.lc.calculate_angle(timeshift)
@@ -237,13 +244,13 @@ class Localizer(object):
 		self.c = 340.29 			# Speed of sound
 		self.mic_dist = mic_dist
 		self.samp_rate = samp_rate
-		self.samp_itrvl = 1.0 / samp_rate
+		self.samp_itrvl = 1.0 / samp_ratec`
 
 
 	def calculate_angle(self, timeshift):
 		dist = self.samp_intvl*timeshift
 
-		(1/2) * sqrt() # Todo
+		angle = arcttan( sqrt( self.mic_dist^2 - dist^2 )/c`dist )# Todo
 		pass
 
 

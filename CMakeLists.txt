@@ -7,7 +7,7 @@ project(audioLocAndRec)
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   rospy
-  rospy
+  roscpp
   sensor_msgs
   std_msgs
 )
@@ -188,3 +188,9 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+include_directories(include ${catkin_INCLUDE_DIRS})
+
+add_executable(master_node src/master_node.cpp)
+target_link_libraries(master_node ${catkin_LIBRARIES})
+add_dependencies(master_node sensor_msgs geometry_msgs neato_node)
