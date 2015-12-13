@@ -12,7 +12,10 @@ from sklearn.mixture import GMM
 class DataIntake(object):
   ''' Exracts MFCCs from audio files
   '''
-  def __init__(self, emotions):
+  def __init__(self, emotions, people):
+
+    self. createNamesList(people)
+
     self.trainingDataX = {}
     self.testingDataX = {}
     self.y = None
@@ -20,6 +23,15 @@ class DataIntake(object):
     self.come = []
     self.modelsDict={}
     self.emotions = emotions
+    self.names = []
+
+  def createNamesList(people):
+    ''' Creates list of names from training data from folders'''
+
+    for person in people:
+      for key in direction.keys():
+        for i in range(1,1+direction[key]):
+          self.names.append(person+key+str(i))
 
   def cleanData(self, filename):
     ''' Cleans data by removing the time before and after the user speaks
@@ -29,25 +41,39 @@ class DataIntake(object):
     #saved code incase we want to use it, but pelase delete in case we don't
     y, sr = librosa.load(filename)
 
-    #remove the first 5000 frames
+    # remove the first 5000 frames
+
+    #used for debugging the cropping of wav file
+    # plot.subplot(2, 1, 1)
+    # plot.plot(y)
+    # plot.title(filename)
+
+
     y=y[5000:] 
 
 
     #removes the time before the user speaks
-    for i in range(y.size):
-      if y[i]> .3: #waits for the volume to go over .3
-        if y[i+500]>.3: #make sure that it's not a blip and stays over .3 for at least 500 frames
-          y = y[i-1000:] #crop audio clip to 1000 places before the volume was determined to go above .3
+    for j in range(y.size):
+      if y[j]> .18 or y[j]< -.15: #waits for the volume to go over .3
           break #stops checking! Makes sure it doesn't continue to clip
 
     #removes time after user finishes speaking
     for i in reversed(range(y.size)):
-      if y[i]> .3: #waits for the volume to go over .3, checking in reverse order
-        y = y[:i+1000] #crop audio clip to 1000 places after the volume went below .3
+      if y[i]> .15 or y[i] < -.15: #waits for the volume to go over .3, checking in reverse order
+        y = y[:i+2000] #crop audio clip to 1000 places after the volume went below .3
         break #stops checking! Makes sure it doesn't continue to clip
+
+    y = y[j-1000:] #crop audio clip to 1000 places before the volume was determined to go above .3
+
 
     self.y = y
     self.sr = sr
+
+    # used for debugging of wav file
+    # plot.subplot(2, 1, 2)
+    # plot.plot(y)
+    # plot.title(str(j+5000)+'/'+str(i+5000))
+    # plot.show()
 
   def mfccExtraction(self, emotion, dataType): 
     '''  Extracts MFCCs from audio file
@@ -134,17 +160,15 @@ class DataIntake(object):
         bestEmotion = emotion
     return bestEmotion, bestScore
 
-  def crossValidation(self, names):
+  def crossValidation(self):
     ''' Runs a cross validation on input sound files. Uses one test sample each time
-
-        names: list of strings, each the filename of the set of soundclips to be used in the training or testing
     '''
-    for i in range(len(names)):
-      for j in range(len(names)):
+    for i in range(len(self.names)):
+      for j in range(len(self.names)):
         if i == j:
-          self.collectTestingData(names[j])
+          self.collectTestingData(self.names[j])
         else:
-          self.collectTrainingData(names[j])
+          self.collectTrainingData(self.names[j])
 
       self.createModelDictionary()
 
@@ -159,8 +183,14 @@ class DataIntake(object):
 
 
 if __name__ == '__main__':
+  #emotions that we will be calculating
   emotions = ["come", "stop", "goodBoy", "fetch"]
-  names = ['Jamie_Gorson', 'Jamie_Gorson1','Jamie_Gorson2', 'Jamie_Gorson3', 'Susie_Grimshaw', 'Susie_Grimshaw1', 'Susie_Grimshaw2', 'Susan_Grimshaw3']
 
-  extract = DataIntake(emotions)
-  extract.crossValidation(names)
+  #collect training data names from folders
+  people = ['jamie', 'susie']
+  direction = {'Close': 4, 'Far':4}#, 'Turn':2}
+
+
+
+  extract = DataIntake(emotions, people)
+  extract.crossValidation()
