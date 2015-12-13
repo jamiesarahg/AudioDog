@@ -23,33 +23,28 @@ void interrupt(int sig){ // can be called asynchronously
 class RobotDriver
 {
 private:
-  //! The node handle we'll be using
   ros::NodeHandle nh_;
-  //! We will be publishing to the "/base_controller/command" topic to issue commands
   ros::Publisher cmd_vel_pub_;
 
 public:
-  //! ROS node initialization
+  // ROS Node Initialization
   RobotDriver(ros::NodeHandle &nh)
   {
     nh_ = nh;
-    //set up the publisher for the cmd_vel topic
     cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
   }
 
-  //! Loop forever while sending drive commands based on keyboard input
+  // Main loop
   bool run()
   {
+    int res_listen, res_pros, res_loc;
     signal(SIGINT, interrupt); 
-    std::cout << "Woof! I'm awake.\nUse keyboard interrupt ";
-    std::cout << "when you want me to stop." << std::endl;
-
-    //we will be sending commands of type "twist"
+    std::cout << std::endl << "Woof! I'm awake.\nUse keyboard interrupt ";
+    std::cout << "when you want me to stop." << std::endl << std::endl;
     geometry_msgs::Twist base_cmd;
 
     char cmd[50];
     while(nh_.ok()){
-      // std::cout << ".";                                            // DEVEL
 
       // Catch keyboard interrupts to stop node.
       if(flag)
@@ -62,17 +57,27 @@ public:
       }
 
       // Call function that searches for audio signal
-      // func
+      res_listen = run_audio_processor();
 
       // Once audio signal has been found and saved to file, 
       // load the file, run prosody script
-      run_prosody_analysis();
+      res_pros = run_prosody_analysis();
 
-      // Prosody script returns a command
+      // If the prosody analysis failed due to cwd issues, exit.
+      if (res_pros == -1){
+        return -1;
+      }
       // Depending on the prosody result, execute a movement command.
-
-
-      // Wait until command is entered
+      else if(res_pros == 1){
+        std::cout <<  "Following!" << std::endl;
+        // execute cross_correlation script here
+      }
+      else if(res_pros == 2){
+        std::cout <<  "Stopping!" << std::endl;
+      }
+      else if(res_pros == 3){
+        std::cout <<  "etc." << std::endl;
+      }
       
 
       base_cmd.linear.x = 0;
@@ -107,42 +112,71 @@ public:
     return true;
   }
 
+  int run_audio_processor()
+  {
+    return 0;
+  }
+
+  /* 
+  run_prosody_analysis()
+  Calls the python prosody analysis script using call_python_method().
+  */ 
+  int run_prosody_analysis()
+  {
+    int res;
+    std::cout << "Running prosody script." << std::endl;
+
+    // Configure input arguments for call_python_method()
+    int nargs = 3;
+    char* args[] = {"", "hello_world", "run"};
+    res = call_python_method(nargs, args);
+    return res;
+  }
+
+  /* 
+  call_python_module()
+  Attempts to import a python module and call one of its functions.
+  Returns -1 if it cannot find the module specified.
+  Returns an int x otherwise.
+  */ 
   int call_python_method(int argc, char *argv[])
   {
-    std::cout << "call_python_method" << std::endl;
+    std::cout << "  call_python_method" << std::endl;
     PyObject *sysPath, *programName, *pName, *pModule, *pDict, *pFunc, *pValue, *pArgs;
     int res;
 
     if (argc < 3) 
     {
-      printf("Usage: exe_name python_source function_name\n");
+      printf("    Usage: exe_name python_source function_name\n");
       return 1;
     }
 
-    // Initialize the Python Interpreter
+      // Initialize the Python Interpreter
     Py_SetProgramName(argv[0]);
     Py_Initialize();
     PySys_SetArgv(argc, argv);
 
-    // Build the name object ... which somehow helps this script locate the module
-    pName = PyString_FromString("~/catkin_ws/src/comprobo15/AudioDog/src/hello_world");
+      // Build the name object ... which somehow helps this script locate the module
+      // pName = PyString_FromString("~/catkin_ws/src/comprobo15/AudioDog/src/hello_world");
 
-    // Load the module object
-    // pModule = PyImport_Import(pName);
+      // Load the module object
+      // pModule = PyImport_Import(pName);
     pModule = PyImport_ImportModule(argv[1]);
     std::cout << "    pModule:  " << pModule << std::endl;
+    if(pModule == 0){
+      std::cout << "Could not find the python module." << std::endl;
+      std::cout << "Please run this node from the module's directory." << std::endl;
+      return -1;
+    }
 
-//     // pDict is a borrowed reference 
     pDict = PyModule_GetDict(pModule);
-
-//     // pFunc is also a borrowed reference 
     pFunc = PyDict_GetItemString(pDict, argv[2]);
     std::cout << "    Calling \"" << argv[2] << "()\":" << std::endl;
     std::cout <<std::endl;
 
     if (PyCallable_Check(pFunc)) 
     {
-    // Prepare the argument list for the call
+      // Prepare the argument list for the call
       if( argc > 3 )
       {
         pArgs = PyTuple_New(argc - 3);
@@ -171,7 +205,7 @@ public:
       if (pValue != NULL) 
       {
         res = PyInt_AsLong(pValue);
-        std::cout << std::endl << "    Result: " << res << std::endl;
+        // std::cout << std::endl << "    Result: " << res << std::endl;
         Py_DECREF(pValue);
       }
       else 
@@ -179,41 +213,16 @@ public:
         PyErr_Print();
       }
 
-    // some code omitted...
     }
 
-    // Clean up
+      // Clean up
     Py_DECREF(pModule);
-    Py_DECREF(pName);
+      // Py_DECREF(pName);
 
-    // Finish the Python Interpreter
+      // Finish the Python Interpreter
     Py_Finalize();
 
-    return 0;
-  }
-
-
-  int run_prosody_analysis()
-  {
-    std::cout << "Running prosody script." << std::endl;
-
-    // Configure python script related strings
-    std::string path = "~/catkin_ws/src/comprobo15/AudioDog/src/hello_world.py";
-    std::ostringstream python_path;
-    python_path << "sys.path.append(\"" << path << "\")";
-
-    // http://www.codeproject.com/Articles/11805/Embedding-Python-in-C-C-Part-I
-    int nargs = 3;
-    char* args[] = {"", "hello_world", "run"};
-    call_python_method(nargs, args);
-
-    // Py_Initialize();  // start python interpreter
-
-    // PyRun_SimpleString("import sys");
-    // PyRun_SimpleString(python_path.str().c_str());
-
-    std::cout << "    Read:"<< std::endl;
-    std::cout << "    Finished" << std::endl;
+    return res;
   }
 
 };
