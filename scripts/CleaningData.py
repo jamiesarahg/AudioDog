@@ -12,24 +12,16 @@ from sklearn.mixture import GMM
 class DataIntake(object):
   ''' Exracts MFCCs from audio files
   '''
-  def __init__(self):
+  def __init__(self, emotions):
     self.trainingDataX = {}
-    self.y_current = None
-    self.sr_current = None
-    self.emotionMap = {}
+    self.testingDataX = {}
+    self.y = None
+    self.sr = None
     self.come = []
     self.modelsDict={}
+    self.emotions = emotions
 
-
-  # def CreateEmotionMap (self, emotions):
-  #   ''' Creates a map from emotions to integers
-
-  #       emotions: list of emotions taken in by user
-  #   '''
-  #   for i in range(0,len(emotions)): 
-  #     self.emotionMap[emotions[i]] = i
-
-  def CleanData(self, filename):
+  def cleanData(self, filename):
     ''' Cleans data by removing the time before and after the user speaks
 
         filename: name of audio file
@@ -57,7 +49,7 @@ class DataIntake(object):
     self.y = y
     self.sr = sr
 
-  def MFCCextraction(self, emotion, dataType): 
+  def mfccExtraction(self, emotion, dataType): 
     '''  Extracts MFCCs from audio file
 
           target: emotion being targeted as an int
@@ -67,12 +59,13 @@ class DataIntake(object):
     mfcc = librosa.feature.mfcc(y=self.y, sr=self.sr, n_mfcc=13)
     if dataType == 'training':
       if emotion in self.trainingDataX.keys():
-        self.trainingDataX[emotion].append(mfcc)
+        self.trainingDataX[emotion] = np.hstack((self.trainingDataX[emotion], mfcc))
       else:
         self.trainingDataX[emotion] = mfcc
-        print emotion
+    if dataType == 'testing':
+        self.testingDataX[emotion] = mfcc
 
-  def PlotMFCC(self):
+  def plotMFCC(self):
     ''' Visualizes the MFCCs 
     '''
     #plot results
@@ -82,63 +75,92 @@ class DataIntake(object):
     plot.title(emotion)
 
 
-  def CollectTrainingData(self, name, emotions):
+  def collectTrainingData(self, name):
     ''' Extracts MFCCs from audio files
 
         name: name of user speaking
         emotions: list of emotions taken in by user
     '''
-    for emotion in emotions:
-      # emotNum = self.emotionMap[emotion]
+    for emotion in self.emotions:
       filename = 'trainingData/'+emotion+'/'+name+'.wav'
-      self.CleanData(filename)
-      self.MFCCextraction(emotion, 'training')
-    print self.trainingDataX
+      self.cleanData(filename)
+      self.mfccExtraction(emotion, 'training')
 
+  def collectTestingData(self, name):
+    ''' Extracts MFCCs from audio files
 
-  def CreateModelDictionary(self, emotions):
-    for i in range (0,len(emotions)):
-      # print emotions[i]
-      if emotions[i] not in self.modelsDict.keys():
-        model = self.CreateModel(emotions[i])
-        self.modelsDict[emotions[i]] = model
+        name: name of user speaking
+        emotions: list of emotions taken in by user
+    '''
+    for emotion in self.emotions:
+      filename = 'trainingData/'+emotion+'/'+name+'.wav'
+      self.cleanData(filename)
+      self.mfccExtraction(emotion, 'testing')
 
+  def createModel(self, emotion):
+    ''' fits GMM model to training data for an emotion
 
-  def CreateModel(self, emotion):
-    model = GMM().fit(self.trainingDataX[emotion])
+        emotion: corresponding emotion to train to
+    '''
+
+    model =GMM()
+    model.fit(self.trainingDataX[emotion].transpose())
     return model
 
-  # def predict(self, emotions, testMFCCs):
-  #   bestEmotion = ""
-  #   bestScore = 0
-  #   for emotion in emotions: 
-  #     score = modelsDict[emotion].score(testMFCCs)
-  #     if score > bestScore:
-  #       bestScore=score
-  #       bestEmotion = emotion
+  def createModelDictionary(self):
+    ''' Builds gausian model for each emotion in self.emotions'''
 
+    for i in range(0,len(self.emotions)):
+        model = self.createModel(self.emotions[i])
+        self.modelsDict[self.emotions[i]] = model
+
+  def predict(self, testMFCC):
+    ''' Predicts emotion from self.emotions of input soundclip
+
+        testMFCC: extracted MFCCs from a short soundclip
+
+        returns: 
+          bestEmotion: predicted emotion based on scores for matching of each emotion
+          bestScore: the score that predicted that emotion
+    '''
+    bestEmotion = ""
+    bestScore = -10000
+    for emotion in self.emotions: 
+      self.modelsDict[emotion].predict(testMFCC)
+      score = self.modelsDict[emotion].score(testMFCC)
+      aveScore = sum(score)/len(score)
+      if aveScore > bestScore:
+        bestScore = aveScore
+        bestEmotion = emotion
+    return bestEmotion, bestScore
+
+  def crossValidation(self, names):
+    ''' Runs a cross validation on input sound files. Uses one test sample each time
+
+        names: list of strings, each the filename of the set of soundclips to be used in the training or testing
+    '''
+    for i in range(len(names)):
+      for j in range(len(names)):
+        if i == j:
+          self.collectTestingData(names[j])
+        else:
+          self.collectTrainingData(names[j])
+
+      self.createModelDictionary()
+
+      for emotion in self.emotions:
+        bestEmotion, bestScore = self.predict(self.testingDataX[emotion].transpose())
+        print 'result', emotion, bestEmotion, bestScore
+      
+      self.trainingDataX = {}
+      self.testingDataX = {}
+      self.modelsDict = {}
 
 
 
 if __name__ == '__main__':
-  extract = DataIntake()
   emotions = ["come", "stop", "goodBoy", "fetch"]
-  # extract.CreateEmotionMap(emotions)
-  print extract.emotionMap
-  extract.CollectTrainingData('Jamie_Gorson', emotions)
-  extract.CreateModelDictionary(emotions)
-  # extract.TrainingData()
-  # plot.figure(1)
-  # i=1
-  # name = 'Jamie_Gorson'
-  
+  names = ['Jamie_Gorson', 'Jamie_Gorson1','Jamie_Gorson2', 'Jamie_Gorson3', 'Susie_Grimshaw', 'Susie_Grimshaw1', 'Susie_Grimshaw2', 'Susan_Grimshaw3']
 
-  # plot.figure(2)
-  # plot.title('Susie')
-  # name = 'Susie_Grimshaw'
-  # i=1
-  # for emotion in emotions:
-  #   filename = 'trainingData/'+emotion+'/'+name+'.wav'
-  #   extract.MFCCextraction('Susie_Grimshaw', emotion, str(i))
-  #   i+=1
-  # plot.show()
+  extract = DataIntake(emotions)
+  extract.crossValidation(names)

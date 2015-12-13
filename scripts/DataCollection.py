@@ -71,6 +71,7 @@ class DataCollection(DirManager):
     output_filename = "trainingData/"+emotion+"/"+self.name+".wav"
     frameRate = 176400
     channels = 2
+
     #wf = wave.open(output_filename, 'wb')
     #wf.setnchannels(channels)
     #wf.setsampwidth(2)
@@ -85,6 +86,7 @@ class DataCollection(DirManager):
 
     #wf.writeframes(p)
     #wf.close()
+
 
 
   def run(self, emotions):
@@ -104,7 +106,9 @@ class DataCollection(DirManager):
       print "When you are ready press enter"
       raw_input()
       self.recordAudioNeatoMic(emotion)
-      #os.system('clear')
+
+      os.system('clear')
+
 
     self.paudio.terminate()
 
