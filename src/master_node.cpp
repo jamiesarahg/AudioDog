@@ -2,10 +2,12 @@
 #include <iostream>
 #include <stdio.h>
 #include <signal.h>
+#include <sndfile.h>
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
 #include <sensor_msgs/LaserScan.h>
 #include <neato_node/Bump.h>
+#include "circular_buffer.h"
 
 
 //http://stackoverflow.com/questions/7998816/do-pyimport-importmodule-and-import-statement-load-into-different-namespace
@@ -114,6 +116,63 @@ public:
 
   int run_audio_processor()
   {
+    SNDFILE *sf;
+    SF_INFO info;
+    int num_channels;
+    int num, num_items;
+    int f,sr,c;
+    int i,j;
+    SNDFILE *out;
+    
+    /* Open stdin to capture WAV data. */
+    info.format = SF_FORMAT_WAV;
+    sf = sf_open_fd(0, SFM_READ, &info, true);
+    if (sf == NULL)
+      {
+      printf("Failed to read stdin.\n");
+      exit(-1);
+      }
+    /* Print some of the info, and figure out how much data to read. */
+    f = info.frames;
+    sr = info.samplerate;
+    c = info.channels;
+    num_items = (int) round(sr / 100);
+    float* incoming_section = new float[num_items*sizeof(float)];
+    float* outgoing_section = new float[num_items*sizeof(float)];
+    int out_index = 0;
+    FloatCircularBuffer buffer (352800, 88200, 0.18, 0.1);
+    bool record = false;
+    bool previousRecord = false;
+    /*
+    Load raw data into the circular buffer and write the data to temp.out
+    when appropriate.
+    */
+    out = sf_open("temp.out",SFM_WRITE, &info);
+    while ((num = sf_read_float (sf, incoming_section, num_items)) > 0) {
+      for (int in_index = 0; in_index < num; in_index++) {
+        record = buffer.push(incoming_section[in_index]);
+        if (record) {
+          //printf("%i\n", out_index);
+          buffer.pop(outgoing_section[out_index]);
+          out_index = (out_index == (num_items-1)) ? 0 : out_index + 1;
+          if (out_index == num_items) {
+            printf("writing and recording\n");
+            sf_write_float (out, outgoing_section, out_index + 1);
+            printf("successful write\n");
+          }
+        } else if (!record && previousRecord) {
+          sf_write_float (out, outgoing_section, out_index + 1);
+          sf_close(sf);
+          sf_close(out);
+          return 0;
+        }
+        previousRecord = record;
+      }
+      //buffer.print_average();
+    }
+    delete [] incoming_section;
+    delete [] outgoing_section;
+    printf("done\n");
     return 0;
   }
 
