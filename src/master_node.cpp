@@ -8,6 +8,12 @@
 #include <neato_node/Bump.h>
 
 
+//http://stackoverflow.com/questions/7998816/do-pyimport-importmodule-and-import-statement-load-into-different-namespace
+//http://www.tutorialspoint.com/python/python_further_extensions.htm
+//http://members.gamedev.net/sicrane/articles/EmbeddingPythonPart1.html
+//https://docs.python.org/2/extending/embedding.html
+
+
 // Keyboard Interrupt Handler
 volatile sig_atomic_t flag = 0;
 void interrupt(int sig){ // can be called asynchronously
@@ -41,7 +47,7 @@ public:
     //we will be sending commands of type "twist"
     geometry_msgs::Twist base_cmd;
 
-    // char cmd[50];
+    char cmd[50];
     while(nh_.ok()){
       // std::cout << ".";                                            // DEVEL
 
@@ -67,14 +73,15 @@ public:
 
 
       // Wait until command is entered
-      // std::cin.getline(cmd, 50);
-      // cmd[0] = 'x';
       
 
       base_cmd.linear.x = 0;
       base_cmd.linear.y = 0;
       base_cmd.angular.z = 0;
 
+      // Old keyboard-controlled movement code
+      // std::cin.getline(cmd, 50);
+      // cmd[0] = 'x';
       // //move forward
       // if(cmd[0]=='+'){
       //   base_cmd.linear.x = 0.25;
@@ -103,7 +110,8 @@ public:
   int call_python_method(int argc, char *argv[])
   {
     std::cout << "call_python_method" << std::endl;
-    PyObject *pName, *pModule, *pDict, *pFunc, *pValue, *pArgs;
+    PyObject *sysPath, *programName, *pName, *pModule, *pDict, *pFunc, *pValue, *pArgs;
+    int res;
 
     if (argc < 3) 
     {
@@ -112,25 +120,29 @@ public:
     }
 
     // Initialize the Python Interpreter
+    Py_SetProgramName(argv[0]);
     Py_Initialize();
+    PySys_SetArgv(argc, argv);
 
-    // Build the name object
-    pName = PyString_FromString(argv[1]);
-    std::cout << "pName: " << argv[1] << std::endl;
-
+    // Build the name object ... which somehow helps this script locate the module
+    pName = PyString_FromString("~/catkin_ws/src/comprobo15/AudioDog/src/hello_world");
 
     // Load the module object
-    pModule = PyImport_Import(pName);
+    // pModule = PyImport_Import(pName);
+    pModule = PyImport_ImportModule(argv[1]);
+    std::cout << "    pModule:  " << pModule << std::endl;
 
-    // pDict is a borrowed reference 
+//     // pDict is a borrowed reference 
     pDict = PyModule_GetDict(pModule);
 
-    // pFunc is also a borrowed reference 
+//     // pFunc is also a borrowed reference 
     pFunc = PyDict_GetItemString(pDict, argv[2]);
+    std::cout << "    Calling \"" << argv[2] << "()\":" << std::endl;
+    std::cout <<std::endl;
 
     if (PyCallable_Check(pFunc)) 
     {
-      // Prepare the argument list for the call
+    // Prepare the argument list for the call
       if( argc > 3 )
       {
         pArgs = PyTuple_New(argc - 3);
@@ -151,15 +163,15 @@ public:
         {
           Py_DECREF(pArgs);
         }
-      } 
-      else
+      } else
       {
         pValue = PyObject_CallObject(pFunc, NULL);
       }
 
       if (pValue != NULL) 
       {
-        std::cout << "Return of call" << PyInt_AsLong(pValue) << std::endl;
+        res = PyInt_AsLong(pValue);
+        std::cout << std::endl << "    Result: " << res << std::endl;
         Py_DECREF(pValue);
       }
       else 
@@ -176,6 +188,8 @@ public:
 
     // Finish the Python Interpreter
     Py_Finalize();
+
+    return 0;
   }
 
 
@@ -190,7 +204,7 @@ public:
 
     // http://www.codeproject.com/Articles/11805/Embedding-Python-in-C-C-Part-I
     int nargs = 3;
-    char* args[] = {"", "hello_world", "main"};
+    char* args[] = {"", "hello_world", "run"};
     call_python_method(nargs, args);
 
     // Py_Initialize();  // start python interpreter

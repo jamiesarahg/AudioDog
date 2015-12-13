@@ -1,7 +1,3 @@
-def main():
+def run():
 	print "hello world"
-	return int(1)
-
-
-if __name__ == '__main__':
-	main()
+	return 2
