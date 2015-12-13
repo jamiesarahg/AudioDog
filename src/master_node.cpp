@@ -65,7 +65,7 @@ public:
 
       // If the prosody analysis failed due to cwd issues, exit.
       if (res_pros == -1){
-        return -1;
+        return false;
       }
       // Depending on the prosody result, execute a movement command.
       else if(res_pros == 1){
@@ -132,6 +132,19 @@ public:
     res = call_python_method(nargs, args);
     return res;
   }
+
+  int run_localization()
+  {
+    int res;
+    std::cout << "Running localization script." << std::endl;
+
+    // Configure input arguments for call_python_method()
+    int nargs = 3;
+    char* args[] = {"", "cross_correlation", "run"};
+    res = call_python_method(nargs, args);
+    return res;
+  }
+
 
   /* 
   call_python_module()
