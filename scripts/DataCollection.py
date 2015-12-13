@@ -71,15 +71,22 @@ class DataCollection(DirManager):
     output_filename = "trainingData/"+emotion+"/"+self.name+".wav"
     frameRate = 176400
     channels = 2
-    wf = wave.open(output_filename, 'wb')
-    wf.setnchannels(channels)
-    wf.setsampwidth(2)
-    wf.setframerate(frameRate)
+
+    #wf = wave.open(output_filename, 'wb')
+    #wf.setnchannels(channels)
+    #wf.setsampwidth(2)
+    #wf.setframerate(frameRate)
+   
+    os.system("arecord -t wav -r 176400 -c 2 -f S16_LE -d 2 " + output_filename) 
+    #record = ["arecord", "-t", "wav", "-r", "176400", "-c", "2", "-f", "S16_LE", "-d", "2", output_filename]
+    #p = subprocess.Popen(record)#, stdout=subprocess.PIPE)
     
-    record = ["arecord", "-t", "wav", "r", frameRate, "-c", channels, "-f", "SI6_LE", "-d", self.RECORD_SECONDS]
-    p = subprocess.Popen(record, stdout=subprocess.PIPE)
-    wf.writeframes(b''.join(frames))
-    wf.close()
+    #p.wait()
+    #output = p.returncode
+
+    #wf.writeframes(p)
+    #wf.close()
+
 
 
   def run(self, emotions):
@@ -91,7 +98,7 @@ class DataCollection(DirManager):
     print "Please speak when asked like you would instruct a dog with the given emotion or command. You will have two seconds for each emotion"
     print "Press enter when you are ready"
     raw_input()
-    os.system('clear')
+    #os.system('clear')
 
     for emotion in emotions:
       print "Like you are commanding or talking to a dog, say a corresponding command with the following emotion:"
@@ -99,7 +106,9 @@ class DataCollection(DirManager):
       print "When you are ready press enter"
       raw_input()
       self.recordAudioNeatoMic(emotion)
+
       os.system('clear')
+
 
     self.paudio.terminate()
 
