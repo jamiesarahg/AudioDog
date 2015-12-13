@@ -1,0 +1,18 @@
+Install openssh-server
+
+bring_up_minimal.launch
+
+To ssh into pi:
+ssh pi@IPaddress
+
+Copy from pi: scp: pi@IPaddress
+
+to test audio:
+open ./test_stream_paul.sh
+change username and IP address, that you can get from ifconfig
+
+Before starting:
+
+run: ./test_high_gain_record.sh
+
+IP address: ;192.168.17.203
