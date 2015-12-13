@@ -45,6 +45,7 @@ public:
 
     char cmd[50];
     while(nh_.ok()){
+      std::cout << std::endl;
 
       // Catch keyboard interrupts to stop node.
       if(flag)
@@ -69,7 +70,8 @@ public:
       }
       // Depending on the prosody result, execute a movement command.
       else if(res_pros == 1){
-        std::cout <<  "Following!" << std::endl;
+        std::cout <<  "Following!" << std::endl << std::endl;
+        run_localization();
         // execute cross_correlation script here
       }
       else if(res_pros == 2){
@@ -111,6 +113,7 @@ public:
     }
     return true;
   }
+
 
   int run_audio_processor()
   {
@@ -164,29 +167,30 @@ public:
       return 1;
     }
 
-      // Initialize the Python Interpreter
     Py_SetProgramName(argv[0]);
-    Py_Initialize();
     PySys_SetArgv(argc, argv);
 
-      // Build the name object ... which somehow helps this script locate the module
-      // pName = PyString_FromString("~/catkin_ws/src/comprobo15/AudioDog/src/hello_world");
 
-      // Load the module object
-      // pModule = PyImport_Import(pName);
+    // Load the module object
+    // pModule = PyImport_Import(pName);
+    std::cout << "    Module: " << argv[1] << std::endl;
     pModule = PyImport_ImportModule(argv[1]);
-    std::cout << "    pModule:  " << pModule << std::endl;
+    // std::cout << "    pModule:  " << pModule << std::endl;
+
     if(pModule == 0){
-      std::cout << "Could not find the python module." << std::endl;
-      std::cout << "Please run this node from the module's directory." << std::endl;
+      std::cout << "    Could not find the python module." << std::endl;
+      std::cout << "    Please run this node from the module's directory." << std::endl;
+      // Clean up
+      Py_DECREF(pFunc);
+      Py_DECREF(pDict);
+      Py_DECREF(pModule);
+
       return -1;
     }
 
     pDict = PyModule_GetDict(pModule);
     pFunc = PyDict_GetItemString(pDict, argv[2]);
     std::cout << "    Calling \"" << argv[2] << "()\":" << std::endl;
-    std::cout <<std::endl;
-
     if (PyCallable_Check(pFunc)) 
     {
       // Prepare the argument list for the call
@@ -195,7 +199,7 @@ public:
         pArgs = PyTuple_New(argc - 3);
         for (int i = 0; i < argc - 3; i++)
         {
-          pValue = PyInt_FromLong(atoi(argv[i + 3]));
+          pValue = PyLong_FromLong(atof(argv[i + 3]));
           if (!pValue)
           {
             PyErr_Print();
@@ -217,8 +221,9 @@ public:
 
       if (pValue != NULL) 
       {
-        res = PyInt_AsLong(pValue);
-        // std::cout << std::endl << "    Result: " << res << std::endl;
+        res = PyLong_AsLong(pValue);
+        std::cout << "    pValue: " << pValue << std::endl;
+        std::cout << "    Result: " << res << std::endl;
         Py_DECREF(pValue);
       }
       else 
@@ -228,12 +233,12 @@ public:
 
     }
 
-      // Clean up
+    // Clean up
+    // Py_DECREF(pFunc);
+    // Py_DECREF(pDict);
     Py_DECREF(pModule);
-      // Py_DECREF(pName);
-
-      // Finish the Python Interpreter
-    Py_Finalize();
+    // Finish the Python Interpreter
+    // Py_Finalize();
 
     return res;
   }
@@ -246,6 +251,12 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "audio_dog");
   ros::NodeHandle nh;
 
+  // Initialize the Python Interpreter
+  std::cout << "    Initializing Python Interpreter" << std::endl;
+  Py_Initialize();
+
   RobotDriver driver(nh);
   driver.run();
+
+  Py_Finalize();
 }

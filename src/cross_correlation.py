@@ -3,11 +3,13 @@
 
 from scipy import signal, fftpack, conj
 import numpy
+import math
 
+DEBUG = True
 test_1 = numpy.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0])
 test_2 = numpy.array([0, 0, 0, 0, 0, 3, 3, 3, 6, 6, 8, 9, 6, 6, 6, 6, 3, 3, 3])
 mic_dist = .05 # Distance between microphones in meters
-cirrus_sample_rate = 49000
+cirrus_sample_rate = 176400
 
 
 class AudioProcessor(object):
@@ -103,7 +105,6 @@ class AudioProcessor(object):
 
 		return [shifted, signals[numpy.argmax(timeshifts)]]
 
-
 class Localizer(object):
 	'''
 	Locates the origin of the audio source.
@@ -112,15 +113,18 @@ class Localizer(object):
 		self.c = 340.29 			# Speed of sound
 		self.mic_dist = mic_dist
 		self.samp_rate = samp_rate
-		self.samp_itrvl = 1.0 / samp_rate
+		self.samp_intvl = 1.0 / samp_rate
 
 
 	def calculate_angle(self, timeshift):
-		dist = self.samp_intvl*timeshift
+		tdoa = self.samp_intvl * timeshift # Time difference of arrival
+		sig_dist = tdoa * self.c
+		print "		tdoa:", tdoa
+		print "		signal distance:", sig_dist
 
-		(1/2) * sqrt()
-		pass
-
+		angle = math.atan( 
+			math.sqrt( self.mic_dist**2 - sig_dist**2 ) / sig_dist )
+		return angle*3
 
 
 	# Determine time between samples via sample rate
@@ -128,11 +132,14 @@ class Localizer(object):
 	# of microphones, and trig.
 		# c = 340.29 m / s
 
-def run(self):
+def run():
 	ap = AudioProcessor()
-	lc = Localizer()
-	timeshift = ap.process_signals([test_1, test_2])
-	lc.calculate_angle(timeshift)
+	lc = Localizer(cirrus_sample_rate, mic_dist)
+	timeshifts = ap.calculate_timeshift([test_1, test_2])
+	timeshift = abs(timeshifts[0])
+	angle = lc.calculate_angle(timeshift)
+	print "			Angle: ", angle
+	return angle
 
 	
 if __name__ == '__main__':
