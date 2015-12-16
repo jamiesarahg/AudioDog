@@ -120,6 +120,7 @@ public:
     SF_INFO info;
     int num_channels;
     int num, num_items;
+    num = 1;
     int f,sr,c;
     int i,j;
     SNDFILE *out;
@@ -133,43 +134,48 @@ public:
       exit(-1);
       }
     /* Print some of the info, and figure out how much data to read. */
-    f = info.frames;
+    sf_count_t frames = 176400*2;
+    int item_goal = 176400*4;
+    int item_count = 0;
     sr = info.samplerate;
-    c = info.channels;
+    info.frames = frames;
+    info.seekable = 1;
     num_items = (int) round(sr / 100);
-    float* incoming_section = new float[num_items*sizeof(float)];
-    float* outgoing_section = new float[num_items*sizeof(float)];
+    float* incoming_section = new float[num_items];
+    float* outgoing_section = new float[num_items];
     int out_index = 0;
     FloatCircularBuffer buffer (352800, 88200, 0.18, 0.1);
     bool record = false;
-    bool previousRecord = false;
+    bool previous_record = false;
     /*
     Load raw data into the circular buffer and write the data to temp.out
     when appropriate.
     */
-    out = sf_open("temp.out",SFM_WRITE, &info);
-    while ((num = sf_read_float (sf, incoming_section, num_items)) > 0) {
+    out = sf_open("temp.wav",SFM_WRITE, &info);
+    while (((num = sf_read_float (sf, incoming_section, num_items)) > 0) &&
+        (item_count < item_goal)) {
       for (int in_index = 0; in_index < num; in_index++) {
-        record = buffer.push(incoming_section[in_index]);
+        record = (buffer.push(incoming_section[in_index])) ? true : record;
+        if (record != previous_record) printf("TRIGGER %f\n", incoming_section[in_index]);
+        previous_record = record;
         if (record) {
-          //printf("%i\n", out_index);
           buffer.pop(outgoing_section[out_index]);
-          out_index = (out_index == (num_items-1)) ? 0 : out_index + 1;
-          if (out_index == num_items) {
-            printf("writing and recording\n");
-            sf_write_float (out, outgoing_section, out_index + 1);
-            printf("successful write\n");
-          }
-        } else if (!record && previousRecord) {
-          sf_write_float (out, outgoing_section, out_index + 1);
-          sf_close(sf);
-          sf_close(out);
-          return 0;
+          out_index++;
+          item_count++;
         }
-        previousRecord = record;
+        if (out_index == num_items) {
+          sf_write_float(out, outgoing_section, out_index);
+          out_index = 0;
+        }
+        if (item_count == item_goal) {
+          sf_write_float(out, outgoing_section, out_index);
+          break;
+        }
       }
-      //buffer.print_average();
+      printf("%i\n", item_count);
     }
+    sf_close(sf);
+    sf_close(out);
     delete [] incoming_section;
     delete [] outgoing_section;
     printf("done\n");
