@@ -26,6 +26,10 @@ private:
   ros::NodeHandle nh_;
   ros::Publisher cmd_vel_pub_;
 
+  bool cmd_found = false;   // true: command found, acting; false: listening
+  int cmd_state = 0;        // 0: stop, 1: follow, 2: good boy
+  int current_angle, start_angle, target_angle;
+
 public:
   // ROS Node Initialization
   RobotDriver(ros::NodeHandle &nh)
@@ -37,7 +41,7 @@ public:
   // Main loop
   bool run()
   {
-    int res_listen, res_pros, res_loc;
+    int result_detect, result_pros, result_loc;
     signal(SIGINT, interrupt); 
     std::cout << std::endl << "Woof! I'm awake.\nUse keyboard interrupt ";
     std::cout << "when you want me to stop." << std::endl << std::endl;
@@ -46,6 +50,11 @@ public:
     char cmd[50];
     while(nh_.ok()){
       std::cout << std::endl;
+
+      // Default twist commands: set stationary
+      base_cmd.linear.x = 0;
+      base_cmd.linear.y = 0;
+      base_cmd.angular.z = 0;
 
       // Catch keyboard interrupts to stop node.
       if(flag)
@@ -57,74 +66,98 @@ public:
         return false;
       }
 
-      // Call function that searches for audio signal
-      res_listen = run_audio_processor();
+      // Call function that searches for audio signal, saves to wav if found
+      result_detect = detect_command();
 
-      // Once audio signal has been found and saved to file, 
-      // load the file, run prosody script
-      res_pros = run_prosody_analysis();
+      // If an audio signal has been found, process it
+      if (result_detect != -1){
 
-      // If the prosody analysis failed due to cwd issues, exit.
-      if (res_pros == -1){
-        return false;
+        // Once audio signal has been found and saved to file, 
+        // load the file, run prosody script, determine command
+        result_pros = analyze_prosody();
+
+        // If the prosody analysis did not fail:
+        if (result_pros != -1){
+
+          // Set the state to the command was found
+          cmd_state = result_pros;
+
+          // If the command was to "follow", find the angle relative to src
+          if(cmd_state == 1){
+            target_angle = determine_src_dir();
+          }
+        }
       }
-      // Depending on the prosody result, execute a movement command.
-      else if(res_pros == 1){
-        std::cout <<  "Following!" << std::endl << std::endl;
-        run_localization();
-        // execute cross_correlation script here
-      }
-      else if(res_pros == 2){
-        std::cout <<  "Stopping!" << std::endl;
-      }
-      else if(res_pros == 3){
-        std::cout <<  "etc." << std::endl;
-      }
+
       
+      //Follow
+      if(cmd_state == 1){
+        std::cout <<  "   STATE: FOLLOW" << std::endl;
+        twist_cmds = follow()
+      }
 
-      base_cmd.linear.x = 0;
-      base_cmd.linear.y = 0;
-      base_cmd.angular.z = 0;
+      // Good Boy
+      else if(cmd_state == 2){
+        std::cout <<  "   STATE: GOODBOY" << std::endl;
+      }
 
-      // Old keyboard-controlled movement code
-      // std::cin.getline(cmd, 50);
-      // cmd[0] = 'x';
-      // //move forward
-      // if(cmd[0]=='+'){
-      //   base_cmd.linear.x = 0.25;
-      // } 
-      // //turn left (yaw) and drive forward at the same time
-      // else if(cmd[0]=='l'){
-      //   base_cmd.angular.z = 0.75;
-      //   base_cmd.linear.x = 0.25;
-      // } 
-      // //turn right (yaw) and drive forward at the same time
-      // else if(cmd[0]=='r'){
-      //   base_cmd.angular.z = -0.75;
-      //   base_cmd.linear.x = 0.25;
-      // } 
-      // //quit
-      // else if(cmd[0]=='.'){
-      //   break;
-      // }
+      // Stop (no command)
+      else if(cmd_state == 0){
+        std::cout <<  "   STATE: 0 (STOP)" << std::endl;
+        base_cmd.linear.x = 0;
+        base_cmd.angular.z = 0;
+      }
+    
 
-      //publish the assembled command
+      //Publish the twist command
       cmd_vel_pub_.publish(base_cmd);
     }
     return true;
   }
 
+  int* follow(){
+    int angle_err;
+    int twist_cmds[2];          // [x, z]
+    twist_cmds = {0, 0};
 
-  int run_audio_processor()
+    // determine difference between current angle and target angle.
+    angle_err = calc_angle_error()
+
+    // determine turn speed (proportional)
+    long turn_speed;
+    turn_speed = (long)angle_err / 90.0; // Scales 0 - 90 to 0 - 1
+
+    
+
+    return twist_cmds
+  }
+
+  int calc_angle_error(){
+    int angle_err;
+    angle_err = 0;
+
+    current_angle = calc_current_angle()
+    angle_err = target_angle = current_angle;
+
+    return err;
+  }
+
+  int calc_current_angle(){
+
+  }
+
+
+  int detect_command()
   {
+    // To be completed by IAN
     return 0;
   }
 
   /* 
-  run_prosody_analysis()
+  analyze_prosody()
   Calls the python prosody analysis script using call_python_method().
   */ 
-  int run_prosody_analysis()
+  int analyze_prosody()
   {
     int res;
     std::cout << "Running prosody script." << std::endl;
@@ -136,7 +169,7 @@ public:
     return res;
   }
 
-  int run_localization()
+  int determine_src_dir()
   {
     int res;
     std::cout << "Running localization script." << std::endl;
@@ -147,7 +180,6 @@ public:
     res = call_python_method(nargs, args);
     return res;
   }
-
 
   /* 
   call_python_module()
