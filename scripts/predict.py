@@ -1,4 +1,6 @@
-def predict(self, emotions, testMFCC, modelsDict):
+import CleaningData as cd
+
+def predict(self, filename, modelsDict):
   ''' Predicts emotion from emotions of input soundclip
       emotions: list of emotions used
 
@@ -9,12 +11,17 @@ def predict(self, emotions, testMFCC, modelsDict):
       returns: 
         index of best emotion
   '''
-  
+  emotions = ["come", "stop", "goodBoy", "fetch"]
+
+  y, sr = cd.cleanData(filename)
+  mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+
+
   bestEmotion = ""
   bestScore = -10000
   for emotion in emotions: 
-    modelsDict[emotion].predict(testMFCC)
-    score = modelsDict[emotion].score(testMFCC)
+    modelsDict[emotion].predict(mfcc)
+    score = modelsDict[emotion].score(mfcc)
     aveScore = sum(score)/len(score)
     if aveScore > bestScore:
       bestScore = aveScore

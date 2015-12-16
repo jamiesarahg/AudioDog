@@ -71,6 +71,8 @@ class DataIntake(object):
     self.y = y
     self.sr = sr
 
+    return y, sr
+
     # used for debugging of wav file
     # plot.subplot(2, 1, 2)
     # plot.plot(y)
