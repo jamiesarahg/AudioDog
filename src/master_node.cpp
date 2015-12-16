@@ -32,7 +32,7 @@ private:
 
   bool awaiting_cmd;             // true: command found, acting; false: listening
   float twist_cmds[2];          // movement commands {forward, angular}
-  int cmd_state;              // 0: stop, 1: follow, 2: good boy, 3: fetch
+  int cmd_state;              // 0: still, 1: follow, 2: still, 3: good boy, 4: fetch
   float current_angle, start_angle, target_angle;
 
   unsigned long loop_start_time, loop_current_time, loop_dt;
@@ -89,7 +89,7 @@ public:
       base_cmd.linear.y = 0;
       base_cmd.angular.z = 0;
 
-      // Catch keyboard interrupts to stop node.
+      // Catch keyboard interrupts to still node.
       if(flag)
       {
         std::cout << "Caught! Keyboard interrupt.";
@@ -138,27 +138,33 @@ public:
           follow();
         }
 
-        // Good Boy
-        else if(cmd_state == 2){
+        // Stop
+        else if(cmd_state == 3){
           // std::cout <<  "   STATE: GOODBOY" << std::endl;
-          good_boy(cmd_start_time, CLOCKS_PER_SEC);
-          
+          stop(cmd_start_time, CLOCKS_PER_SEC);
         }
 
-        // Stop (no command)
+        // Good Boy
+        else if(cmd_state == 3){
+          // std::cout <<  "   STATE: GOODBOY" << std::endl;
+          good_boy(cmd_start_time, CLOCKS_PER_SEC);
+        }
+
+        // Fetch
+        else if(cmd_state == 4){
+          // std::cout <<  "   STATE: FETCH" << std::endl;
+          fetch(cmd_start_time, CLOCKS_PER_SEC);
+        }
+
+        // Still (no command)
         else if(cmd_state == 0){
-          // std::cout <<  "   STATE: 0 (STOP)" << std::endl;
+          // std::cout <<  "   STATE: 0 (STILL)" << std::endl;
           twist_cmds[0] = 0.0;
           twist_cmds[1] = 0.0;
           awaiting_cmd = true;
         }
 
-        // Fetch
-        else if(cmd_state == 3){
-          // std::cout <<  "   STATE: FETCH" << std::endl;
-          fetch(cmd_start_time, CLOCKS_PER_SEC);
-          
-        }
+
       }
 
 
@@ -220,10 +226,10 @@ public:
     }
   }
 
-    void fetch(cmd_start_time, CLOCKS_PER_SEC){
+  void fetch(cmd_start_time, CLOCKS_PER_SEC){
     // Function to run during fetch state
 
-    float diff_time; // difference of time from start selection of good boy to now
+    float diff_time; // difference of time from start selection of fetch to now
     float tenth_diff_time; // decimals of diff_time
 
     diff_time = cmd_start_time/CLOCKS_PER_SEC - clock()/CLOCKS_PER_SEC //calculating diff_time
@@ -241,7 +247,37 @@ public:
       tenth_diff_time = diff_time % 1;
       // fetch turns direction for 4 seconds. Check to see if it should be going left or right.
       twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
-      twist_cmds[1] = 0.8;          // the z (angular) speed (0 - 1)
+      twist_cmds[1] = 0.4;          // the z (angular) speed (0 - 1)
+    }
+  }
+
+  void stop(cmd_start_time, CLOCKS_PER_SEC){
+    // Function to run during stop state
+
+    float diff_time; // difference of time from start selection of stop to now
+    float tenth_diff_time; // decimals of diff_time
+    float isOdd;
+
+    diff_time = cmd_start_time/CLOCKS_PER_SEC - clock()/CLOCKS_PER_SEC //calculating diff_time
+
+    // check to see if in fetch for more than four seconds. If so, exit loop
+    if (diff_time > 4) {
+      //CHANGE STATUS
+      twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
+      twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
+      cmd_state = 0;
+      awaiting_cmd = true;
+    }
+    else {
+      isOdd = floor(diff_time)%2;
+      if (isOdd){
+        twist_cmds[0] = 0.8;          // the x (forward) speed (between 0 - 1)
+        twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
+      } 
+      else {
+        twist_cmds[0] = -0.8;          // the x (forward) speed (between 0 - 1)
+        twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
+      }
     }
   }
 
