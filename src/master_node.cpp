@@ -3,11 +3,13 @@
 #include <ctime>
 #include <stdio.h>
 #include <signal.h>
+#include <sndfile.h>
 #include <ros/ros.h>
 #include <std_msgs/String.h>
 #include <geometry_msgs/Twist.h>
 #include <sensor_msgs/LaserScan.h>
 #include <neato_node/Bump.h>
+#include "circular_buffer.h"
 
 
 //http://stackoverflow.com/questions/7998816/do-pyimport-importmodule-and-import-statement-load-into-different-namespace
@@ -219,7 +221,65 @@ public:
 
   int detect_command()
   {
-    // To be completed by Ian
+    SNDFILE *sf;
+    SF_INFO info;
+    int num_channels;
+    int num, num_items;
+    num = 1;
+    int f,sr,c;
+    int i,j;
+    SNDFILE *out;
+    
+    /* Open stdin to capture WAV data. */
+    info.format = SF_FORMAT_WAV;
+    sf = sf_open_fd(0, SFM_READ, &info, true);
+    if (sf == NULL)
+      {
+      printf("Failed to read stdin.\n");
+      exit(-1);
+      }
+    /* Print some of the info, and figure out how much data to read. */
+    sf_count_t frames = 176400*2;
+    int item_goal = 176400*4;
+    int item_count = 0;
+    sr = info.samplerate;
+    info.frames = frames;
+    info.seekable = 1;
+    num_items = (int) round(sr / 100);
+    float* incoming_section = new float[num_items];
+    float* outgoing_section = new float[num_items];
+    int out_index = 0;
+    FloatCircularBuffer buffer (352800, 88200, 0.18, 0.1);
+    bool record = false;
+    /*
+    Load raw data into the circular buffer and write the data to temp.out
+    when appropriate.
+    */
+    out = sf_open("temp.wav",SFM_WRITE, &info);
+    while (((num = sf_read_float (sf, incoming_section, num_items)) > 0) &&
+        (item_count < item_goal)) {
+      for (int in_index = 0; in_index < num; in_index++) {
+        record = (buffer.push(incoming_section[in_index])) ? true : record;
+        if (record) {
+          buffer.pop(outgoing_section[out_index]);
+          out_index++;
+          item_count++;
+        }
+        if (out_index == num_items) {
+          sf_write_float(out, outgoing_section, out_index);
+          out_index = 0;
+        }
+        if (item_count == item_goal) {
+          sf_write_float(out, outgoing_section, out_index);
+          break;
+        }
+      }
+    }
+    sf_close(sf);
+    sf_close(out);
+    delete [] incoming_section;
+    delete [] outgoing_section;
+    printf("done\n");
     return 0;
   }
 

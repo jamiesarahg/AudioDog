@@ -200,4 +200,5 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 
 add_executable(master_node src/master_node.cpp)
 target_link_libraries(master_node ${catkin_LIBRARIES} ${PYTHON_LIBRARIES})
+target_link_libraries(master_node sndfile)
 add_dependencies(master_node sensor_msgs geometry_msgs neato_node python2.7)
