@@ -2,14 +2,63 @@
 # https://mail.scipy.org/pipermail/scipy-user/2011-December/031177.html
 
 from scipy import signal, fftpack, conj
+from scipy.io import wavfile
 import numpy
 import math
+
+from scikits.audiolab import wavread
 
 DEBUG = True
 test_1 = numpy.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0])
 test_2 = numpy.array([0, 0, 0, 0, 0, 3, 3, 3, 6, 6, 8, 9, 6, 6, 6, 6, 3, 3, 3])
 mic_dist = .05 # Distance between microphones in meters
-cirrus_sample_rate = 176400
+num_chunks = 20
+
+class WaveReader(object):
+	def __init__(self):
+		self.samp_rate = 0;
+		self.num_frames = 0;
+
+	def read(self, filename):
+		rate = 0;
+		chunked_audio = []
+		ch_0 = []
+		ch_1 = []
+
+		[rate, w] = wavfile.read(filename)
+		raw_0 = w[:, 0]
+		raw_1 = w[:, 1]
+
+		self.samp_rate = rate
+		self.num_frames = len(raw_0)
+		self.duration = self.num_frames/rate
+
+		chunk_len = self.num_frames / num_chunks;
+		for c in range(0, num_chunks):
+			start = c*chunk_len
+			end = (c+1)*chunk_len
+
+			chunk_ch_0 = raw_0[start:end]
+			chunk_ch_1 = raw_0[start:end]
+
+			ch_0.append(chunk_ch_0)
+			ch_1.append(chunk_ch_1)
+
+		chunked_audio = [ch_0, ch_1]
+
+		print "scipy rate:", rate
+		print "scipy len:", self.num_frames
+		print "chunk_len:", chunk_len
+		print "duration:", self.duration
+		
+		print "scipy ch0 :", raw_0
+		print "scipy ch1 :", raw_1
+
+		print "scipy ch_0 :", ch_0
+		print "scipy ch_1 :", ch_1
+
+		return [rate, chunked_audio]
+
 
 
 class AudioProcessor(object):
@@ -133,8 +182,12 @@ class Localizer(object):
 		# c = 340.29 m / s
 
 def run():
+	filename = "../wav/jamieClose1.wav";
+	wr = WaveReader()
+	[rate, chunks] = wr.read(filename)
+
 	ap = AudioProcessor()
-	lc = Localizer(cirrus_sample_rate, mic_dist)
+	lc = Localizer(rate, mic_dist)
 	timeshifts = ap.calculate_timeshift([test_1, test_2])
 	timeshift = abs(timeshifts[0])
 	angle = lc.calculate_angle(timeshift)

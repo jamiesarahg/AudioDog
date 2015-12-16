@@ -40,7 +40,6 @@ public:
   {
     nh_ = nh;
     cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
-    // scanSub = nh.subscribe("scan", 1000, processLaserScan);
   }
 
   // Main loop
@@ -281,16 +280,11 @@ public:
 
     return res;
   }
-
-
-  void processLaserScan(const sensor_msgs::LaserScan::ConstPtr& scan){
-    //scan->ranges[] are laser readings
-
-    int size = scan->ranges.size();
-    std::cout << "LaserScan size: " << size << std::endl;
-  }
+  
 
 };
+
+
 
 
 int main(int argc, char** argv)
