@@ -3,7 +3,6 @@
 #include <stdio.h>
 #include <signal.h>
 #include <sndfile.h>
-#include <unistd.h>
 #include <ros/ros.h>
 #include <geometry_msgs/Twist.h>
 #include <sensor_msgs/LaserScan.h>
@@ -127,9 +126,7 @@ public:
     
     /* Open stdin to capture WAV data. */
     info.format = SF_FORMAT_WAV;
-    info.channels = 2;
-    info.samplerate = 176400;
-    sf = sf_open_fd(STDIN_FILENO, SFM_READ, &info, true);
+    sf = sf_open_fd(0, SFM_READ, &info, true);
     if (sf == NULL)
       {
       printf("Failed to read stdin.\n");
