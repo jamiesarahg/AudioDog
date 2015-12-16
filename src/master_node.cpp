@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <ros/ros.h>
+#include <std_msgs/String.h>
 #include <geometry_msgs/Twist.h>
 #include <sensor_msgs/LaserScan.h>
 #include <neato_node/Bump.h>
@@ -12,7 +13,8 @@
 //http://www.tutorialspoint.com/python/python_further_extensions.htm
 //http://members.gamedev.net/sicrane/articles/EmbeddingPythonPart1.html
 //https://docs.python.org/2/extending/embedding.html
-
+//https://books.google.com/books?id=n11lCgAAQBAJ&pg=PA140&lpg=PA140&dq=ros+laserscan+ranges&source=bl&ots=zWvUw5jUCO&sig=DNNW87ol3By0hyFbKaxTF89wYQY&hl=en&sa=X&ved=0ahUKEwjajsL_5N_JAhVHOiYKHcMhCWAQ6AEIWzAJ#v=onepage&q=ros%20laserscan%20ranges&f=false
+//http://ros-users.122217.n3.nabble.com/SICK-LMS-Subscriber-Node-td970412.html
 
 // Keyboard Interrupt Handler
 volatile sig_atomic_t flag = 0;
@@ -25,9 +27,11 @@ class RobotDriver
 private:
   ros::NodeHandle nh_;
   ros::Publisher cmd_vel_pub_;
+  ros::Subscriber scanSub;
 
-  bool cmd_found = false;   // true: command found, acting; false: listening
-  int cmd_state = 0;        // 0: stop, 1: follow, 2: good boy
+  bool cmd_found;   // true: command found, acting; false: listening
+  int twist_cmds[2];
+  int cmd_state;        // 0: stop, 1: follow, 2: good boy
   int current_angle, start_angle, target_angle;
 
 public:
@@ -36,11 +40,16 @@ public:
   {
     nh_ = nh;
     cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
+    // scanSub = nh.subscribe("scan", 1000, processLaserScan);
   }
 
   // Main loop
   bool run()
   {
+    cmd_found = false;
+    cmd_state = 0;
+
+
     int result_detect, result_pros, result_loc;
     signal(SIGINT, interrupt); 
     std::cout << std::endl << "Woof! I'm awake.\nUse keyboard interrupt ";
@@ -93,7 +102,7 @@ public:
       //Follow
       if(cmd_state == 1){
         std::cout <<  "   STATE: FOLLOW" << std::endl;
-        twist_cmds = follow()
+        follow();
       }
 
       // Good Boy
@@ -115,31 +124,29 @@ public:
     return true;
   }
 
-  int* follow(){
+  void follow(){
     int angle_err;
-    int twist_cmds[2];          // [x, z]
-    twist_cmds = {0, 0};
+    int new_twist_cmds[2];
 
     // determine difference between current angle and target angle.
-    angle_err = calc_angle_error()
+    angle_err = calc_angle_error();
 
     // determine turn speed (proportional)
     long turn_speed;
     turn_speed = (long)angle_err / 90.0; // Scales 0 - 90 to 0 - 1
-
     
 
-    return twist_cmds
+    std::copy(new_twist_cmds, new_twist_cmds+2, twist_cmds);
   }
 
   int calc_angle_error(){
     int angle_err;
     angle_err = 0;
 
-    current_angle = calc_current_angle()
+    current_angle = calc_current_angle();
     angle_err = target_angle = current_angle;
 
-    return err;
+    return angle_err;
   }
 
   int calc_current_angle(){
@@ -275,7 +282,16 @@ public:
     return res;
   }
 
+
+  void processLaserScan(const sensor_msgs::LaserScan::ConstPtr& scan){
+    //scan->ranges[] are laser readings
+
+    int size = scan->ranges.size();
+    std::cout << "LaserScan size: " << size << std::endl;
+  }
+
 };
+
 
 int main(int argc, char** argv)
 {
