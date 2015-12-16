@@ -14,7 +14,6 @@ class DataIntake(object):
   '''
   def __init__(self, emotions, people):
 
-    self. createNamesList(people)
 
     self.trainingDataX = {}
     self.testingDataX = {}
@@ -25,7 +24,10 @@ class DataIntake(object):
     self.emotions = emotions
     self.names = []
 
-  def createNamesList(people):
+    self. createNamesList(people)
+
+
+  def createNamesList(self, people):
     ''' Creates list of names from training data from folders'''
 
     for person in people:
@@ -139,6 +141,7 @@ class DataIntake(object):
     for i in range(0,len(self.emotions)):
         model = self.createModel(self.emotions[i])
         self.modelsDict[self.emotions[i]] = model
+    return self.modelsDict
 
   def predict(self, testMFCC):
     ''' Predicts emotion from self.emotions of input soundclip
