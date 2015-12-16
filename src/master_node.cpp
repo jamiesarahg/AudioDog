@@ -1,5 +1,6 @@
 #include <python2.7/Python.h> 
 #include <iostream>
+#include <ctime>
 #include <stdio.h>
 #include <signal.h>
 #include <ros/ros.h>
@@ -29,10 +30,14 @@ private:
   ros::Publisher cmd_vel_pub_;
   ros::Subscriber scanSub;
 
-  bool cmd_found;   // true: command found, acting; false: listening
-  int twist_cmds[2];
-  int cmd_state;        // 0: stop, 1: follow, 2: good boy
-  int current_angle, start_angle, target_angle;
+  bool awaiting_cmd;             // true: command found, acting; false: listening
+  float twist_cmds[2];          // movement commands {forward, angular}
+  int cmd_state;              // 0: stop, 1: follow, 2: good boy
+  float current_angle, start_angle, target_angle;
+
+  unsigned long loop_start_time, loop_current_time, loop_dt;
+
+  std::string cmd_file;
 
 public:
   // ROS Node Initialization
@@ -40,24 +45,44 @@ public:
   {
     nh_ = nh;
     cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
+    cmd_file = "../wav/jamieClose1.wav";  // to be renamed
   }
 
   // Main loop
   bool run()
   {
-    cmd_found = false;
+    int result_detect, result_pros, result_dir;
+    long loop_current_time;
+    signal(SIGINT, interrupt); 
+    geometry_msgs::Twist base_cmd;
+    awaiting_cmd = true;
     cmd_state = 0;
 
+    // Time tracking variables
+    long CLOCKS_PER_MS = CLOCKS_PER_SEC/1000.0;
+    loop_start_time = clock();
 
-    int result_detect, result_pros, result_loc;
-    signal(SIGINT, interrupt); 
     std::cout << std::endl << "Woof! I'm awake.\nUse keyboard interrupt ";
     std::cout << "when you want me to stop." << std::endl << std::endl;
-    geometry_msgs::Twist base_cmd;
+    
+    // create model dictionary # TODO
+        // create_models.py
+        // predict.py -> dictionary  created from create_models
+          // pass in wave filename
 
-    char cmd[50];
+
     while(nh_.ok()){
+      loop_current_time = clock();
+      loop_dt = (loop_current_time - loop_start_time) / CLOCKS_PER_MS; 
+      
+      // Only run loop once every 10 ms or slower.
+      if (loop_dt < 10){
+        continue;
+      }
+
+      loop_start_time = loop_current_time;
       std::cout << std::endl;
+      
 
       // Default twist commands: set stationary
       base_cmd.linear.x = 0;
@@ -74,58 +99,75 @@ public:
         return false;
       }
 
+      
       // Call function that searches for audio signal, saves to wav if found
-      result_detect = detect_command();
+        // updates "test.wav"
+      if (awaiting_cmd){
+        std::cout << "AWAITING CMD" << std::endl;
+        result_detect = detect_command();
 
-      // If an audio signal has been found, process it
-      if (result_detect != -1){
+        // If an audio signal has been found, process it
+        if (result_detect != -1){
 
-        // Once audio signal has been found and saved to file, 
-        // load the file, run prosody script, determine command
-        result_pros = analyze_prosody();
+          // Once audio signal has been found and saved to file, 
+          // load the file, run prosody script, determine command
+          result_pros = analyze_prosody(); // UPDATE TO RUN PROSODY
 
-        // If the prosody analysis did not fail:
-        if (result_pros != -1){
+          // If the prosody analysis did not fail:
+          if (result_pros != -1){
 
-          // Set the state to the command was found
-          cmd_state = result_pros;
+            // Set the state to the command was found
+            cmd_state = result_pros;
+            awaiting_cmd = false;
 
-          // If the command was to "follow", find the angle relative to src
-          if(cmd_state == 1){
-            target_angle = determine_src_dir();
+            // If the command was to "follow", find the angle relative to src
+            if(cmd_state == 1){
+              result_dir = determine_src_dir(); // TODO  - DOWNSAMPLE
+              target_angle = result_dir / 1000.0;
+            }
           }
         }
       }
+      else{
+        // std::cout << "STATE:" << cmd_state << std::endl;
+        //Follow
+        if(cmd_state == 1){
+          std::cout <<  "   STATE: FOLLOW" << std::endl;
+          std::cout <<  "   TARGET: " <<  target_angle << std::endl;
+          follow();
+        }
 
-      
-      //Follow
-      if(cmd_state == 1){
-        std::cout <<  "   STATE: FOLLOW" << std::endl;
-        follow();
+        // Good Boy
+        else if(cmd_state == 2){
+          // std::cout <<  "   STATE: GOODBOY" << std::endl;
+          good_boy(); // TODO : to be completed by prosody team
+          
+        }
+
+        // Stop (no command)
+        else if(cmd_state == 0){
+          // std::cout <<  "   STATE: 0 (STOP)" << std::endl;
+          twist_cmds[0] = 0.0;
+          twist_cmds[1] = 0.0;
+          awaiting_cmd = true;
+        }
       }
 
-      // Good Boy
-      else if(cmd_state == 2){
-        std::cout <<  "   STATE: GOODBOY" << std::endl;
-      }
 
-      // Stop (no command)
-      else if(cmd_state == 0){
-        std::cout <<  "   STATE: 0 (STOP)" << std::endl;
-        base_cmd.linear.x = 0;
-        base_cmd.angular.z = 0;
-      }
-    
+      base_cmd.linear.x = twist_cmds[0];
+      base_cmd.angular.z = twist_cmds[1];
 
       //Publish the twist command
       cmd_vel_pub_.publish(base_cmd);
     }
+
+
     return true;
   }
 
   void follow(){
-    int angle_err;
-    int new_twist_cmds[2];
+    float angle_err;
+    float new_twist_cmds[2];
 
     // determine difference between current angle and target angle.
     angle_err = calc_angle_error();
@@ -135,7 +177,29 @@ public:
     turn_speed = (long)angle_err / 90.0; // Scales 0 - 90 to 0 - 1
     
 
-    std::copy(new_twist_cmds, new_twist_cmds+2, twist_cmds);
+    // std::copy(new_twist_cmds, new_twist_cmds+2, twist_cmds);
+    twist_cmds[0] = 0.0;
+    twist_cmds[1] = turn_speed;
+  }
+
+  void good_boy(){
+    // TODO : to be completed by prosody team
+    // run this function on every iteration of loop
+    // for example: if "Goodboy" makes the neato turn for three seconds
+    // check the time elapsed, if there is still time, keep turning
+    // if time is up, stop turning
+
+    //if the command is finished, let the neato listen for another command
+    /*
+    if (... enter finished conditional here){
+      cmd_state = 0;
+      awaiting_cmd = true;
+    }
+    */
+
+
+    twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
+    twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
   }
 
   int calc_angle_error(){
@@ -143,7 +207,7 @@ public:
     angle_err = 0;
 
     current_angle = calc_current_angle();
-    angle_err = target_angle = current_angle;
+    angle_err = target_angle - current_angle;
 
     return angle_err;
   }
@@ -155,7 +219,7 @@ public:
 
   int detect_command()
   {
-    // To be completed by IAN
+    // To be completed by Ian
     return 0;
   }
 
@@ -166,7 +230,7 @@ public:
   int analyze_prosody()
   {
     int res;
-    std::cout << "Running prosody script." << std::endl;
+    std::cout << "    Running prosody script." << std::endl;
 
     // Configure input arguments for call_python_method()
     int nargs = 3;
@@ -175,10 +239,15 @@ public:
     return res;
   }
 
+
+  /* 
+  determine_src_dir()
+  Calls the python angle calculation script using call_python_method().
+  */ 
   int determine_src_dir()
   {
     int res;
-    std::cout << "Running localization script." << std::endl;
+    std::cout << "    Running angle calculation script." << std::endl;
 
     // Configure input arguments for call_python_method()
     int nargs = 3;
@@ -237,7 +306,7 @@ public:
         pArgs = PyTuple_New(argc - 3);
         for (int i = 0; i < argc - 3; i++)
         {
-          pValue = PyLong_FromLong(atof(argv[i + 3]));
+          pValue = PyInt_FromLong(atoi(argv[i + 3]));
           if (!pValue)
           {
             PyErr_Print();
@@ -281,10 +350,7 @@ public:
     return res;
   }
   
-
 };
-
-
 
 
 int main(int argc, char** argv)
