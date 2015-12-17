@@ -141,6 +141,7 @@ public:
       if (awaiting_cmd){
         std::cout << "AWAITING CMD" << std::endl;
         result_detect = detect_command();
+        // result_detect = 1;
 
         // If an audio signal has been found, process it
         if (result_detect != -1){
@@ -149,7 +150,7 @@ public:
           // Once audio signal has been found and saved to file, 
           // load the file, run prosody script, determine command
           // result_pros = analyze_prosody(); // UPDATE TO RUN PROSODY
-          result_pros = 2; // DEBUG
+          result_pros = 0; // DEBUG
 
           // If the prosody analysis did not fail:
           if (result_pros != -1){
@@ -237,10 +238,11 @@ public:
 
     float dt, mod; // difference of time from start selection of good boy to now
 
-    dt = (cmd_start_time - clock())/CLOCKS_PER_MS; //calculating diff_time
+    dt = (clock() - cmd_start_time)/CLOCKS_PER_MS; //calculating diff_time
 
     // check to see if in good_boy for more than four seconds. If so, exit loop
     if (dt > 4000) {
+      std::cout << "    Now awaiting cmd" << std::endl;
       //CHANGE STATUS
       twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
       twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
@@ -248,14 +250,19 @@ public:
       awaiting_cmd = true;
     }
     else {
+      
       mod = (int)dt % 1000;
+      // std::cout << "    dt: " << dt;
+      // std::cout << "    mod: " << mod;
       // good boy switches direction every .5 seconds. 
       // Check to see if it should be going left or right.
       if (mod > 500) {
+            // std::cout << "    NEG" << std::endl;
             twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
             twist_cmds[1] = -0.8;          // the z (angular) speed (0 - 1)
       }
       else {
+            // std::cout << "    POS" << std::endl;
             twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
             twist_cmds[1] = 0.8;          // the z (angular) speed (0 - 1)
       }
@@ -266,10 +273,11 @@ public:
     // Function to run during fetch state
 
     float dt;                       // elapsed time
-    dt = (cmd_start_time - clock()) / CLOCKS_PER_MS; //calculating diff_time
+    dt = (clock() - cmd_start_time)/CLOCKS_PER_MS; //calculating diff_time
 
     // check to see if in fetch for more than four seconds. If so, exit loop
     if (dt > 4000) {
+      std::cout << "    Now awaiting cmd" << std::endl;
       //CHANGE STATUS
       twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
       twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
@@ -279,7 +287,7 @@ public:
     else {
       // fetch turns direction for 4 seconds. Check to see if it should be going left or right.
       twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
-      twist_cmds[1] = 0.4;          // the z (angular) speed (0 - 1)
+      twist_cmds[1] = 0.8;          // the z (angular) speed (0 - 1)
     }
   }
 
@@ -289,10 +297,11 @@ public:
     float dt; // difference of time from start selection of stop to now
     float isOdd;
 
-    dt = (cmd_start_time - clock())/CLOCKS_PER_MS; //calculating diff_time
+    dt = (clock() - cmd_start_time)/CLOCKS_PER_MS; //calculating diff_time
 
     // check to see if in stop for more than four seconds. If so, exit loop
     if (dt > 4000) {
+      std::cout << "    Now awaiting cmd" << std::endl;
       //CHANGE STATUS
       twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
       twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
@@ -302,12 +311,12 @@ public:
 
     else {
       isOdd = (int)floor(dt/1000) % 2;
-      if (isOdd){
-        twist_cmds[0] = 0.8;          // the x (forward) speed (between 0 - 1)
+      if (!isOdd){
+        twist_cmds[0] = 0.4;          // the x (forward) speed (between 0 - 1)
         twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
       } 
       else {
-        twist_cmds[0] = -0.8;          // the x (forward) speed (between 0 - 1)
+        twist_cmds[0] = -0.4;          // the x (forward) speed (between 0 - 1)
         twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
       }
     }
