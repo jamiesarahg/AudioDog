@@ -97,14 +97,16 @@ public:
 
     // --------------------------------------------------------------
 
-    std::cout << std::endl << "Woof! I'm awake.\nUse keyboard interrupt ";
-    std::cout << "when you want me to stop." << std::endl << std::endl;
     
+    std::cout << "Creating models for prosody analysis." << std::endl;
     // create model dictionary # TODO
     create_models();
         // create_models.py
         // predict.py -> dictionary  created from create_models
           // pass in wave filename
+
+    std::cout << std::endl << "Woof! I'm awake.\nUse keyboard interrupt ";
+    std::cout << "when you want me to stop." << std::endl << std::endl;
 
 
     while(nh_.ok()){
@@ -175,7 +177,7 @@ public:
 
         // Stop
         else if(cmd_state == 3){
-          // std::cout <<  "   STATE: GOODBOY" << std::endl;
+          // std::cout <<  "   STATE: STOP" << std::endl;
           stop(cmd_start_time);
         }
 
@@ -198,10 +200,7 @@ public:
           twist_cmds[1] = 0.0;
           awaiting_cmd = true;
         }
-
-
       }
-
 
       base_cmd.linear.x = twist_cmds[0];
       base_cmd.angular.z = twist_cmds[1];
@@ -363,7 +362,7 @@ public:
     Load raw data into the circular buffer and write the data to temp.out
     when appropriate.
     */
-    out = sf_open("temp.wav",SFM_WRITE, &info);
+    out = sf_open("../wav/sample.wav",SFM_WRITE, &info);
     while (((num = sf_read_float (sf, incoming_section, num_items)) > 0) &&
         (item_count < item_goal)) {
       for (int in_index = 0; in_index < num; in_index++) {
@@ -402,7 +401,7 @@ public:
 
     // Configure input arguments for call_python_method()
     int nargs = 3;
-    char* args[] = {"", "hello_world", "run"};
+    char* args[] = {"", "predict", "predict_wrapper"};
     res = call_python_method(nargs, args);
     return res;
   }
@@ -410,7 +409,7 @@ public:
   void create_models(){
     std::cout << "    create_models()" << std::endl;
     int nargs = 3;
-    char* args[] = {"", "createModels_rev1", "createModels"};
+    char* args[] = {"", "createModels", "createModels"};
     call_python_method(nargs, args);
   }
 
@@ -533,7 +532,6 @@ int main(int argc, char** argv)
   ros::NodeHandle nh;
 
   // Initialize the Python Interpreter
-  std::cout << "    Initializing Python Interpreter" << std::endl;
   Py_Initialize();
 
   RobotDriver driver(nh);

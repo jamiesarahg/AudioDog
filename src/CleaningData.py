@@ -9,6 +9,8 @@ import scipy.io.wavfile as wav
 import matplotlib.pyplot as plot
 from sklearn.mixture import GMM
 
+
+
 class DataIntake(object):
   ''' Exracts MFCCs from audio files
   '''
@@ -29,6 +31,7 @@ class DataIntake(object):
 
   def createNamesList(self, people):
     ''' Creates list of names from training data from folders'''
+    direction = {'Close': 4, 'Far':4}#, 'Turn':2
 
     for person in people:
       for key in direction.keys():
@@ -187,7 +190,7 @@ class DataIntake(object):
 
 
 
-if __name__ == '__main__':
+def run():
   #emotions that we will be calculating
   emotions = ["come", "stop", "goodBoy", "fetch"]
 
@@ -199,3 +202,6 @@ if __name__ == '__main__':
 
   extract = DataIntake(emotions, people)
   extract.crossValidation()
+
+if __name__ == '__main__':
+  run()
