@@ -1,6 +1,7 @@
 Dependencies:
 librosa
      pip install librosa
+     go to usr/local/lib/python2.7/dist-packages/librosa, open __init__.py, comment out "import display"
 
 -pyaudio
 -     sudo apt-get install python-pyaudio python3-pyaudio 

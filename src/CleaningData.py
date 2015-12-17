@@ -8,6 +8,7 @@ from features import logfbank
 import scipy.io.wavfile as wav
 import matplotlib.pyplot as plot
 from sklearn.mixture import GMM
+import pickle
 
 
 
@@ -147,6 +148,7 @@ class DataIntake(object):
         model = self.createModel(self.emotions[i])
         print "model:", model
         self.modelsDict[self.emotions[i]] = model
+    pickle.dump(self.modelsDict, open( "save.p", "wb" ) )
     return self.modelsDict
 
   def predict(self, testMFCC):
