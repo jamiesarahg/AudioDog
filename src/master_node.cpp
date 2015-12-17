@@ -35,7 +35,8 @@ private:
   int cmd_state;              // 0: still, 1: follow, 2: still, 3: good boy, 4: fetch
   float current_angle, start_angle, target_angle;
 
-  unsigned long loop_start_time, loop_current_time, loop_dt;
+  long CLOCKS_PER_MS;
+  unsigned long loop_start_time, loop_current_time, loop_dt, cmd_start_time;
 
   std::string cmd_file;
 
@@ -52,14 +53,13 @@ public:
   bool run()
   {
     int result_detect, result_pros, result_dir;
-    long loop_current_time;
     signal(SIGINT, interrupt); 
     geometry_msgs::Twist base_cmd;
     awaiting_cmd = true;
     cmd_state = 0;
 
     // Time tracking variables
-    long CLOCKS_PER_MS = CLOCKS_PER_SEC/1000.0;
+    CLOCKS_PER_MS = CLOCKS_PER_SEC/1000.0;
     loop_start_time = clock();
 
     std::cout << std::endl << "Woof! I'm awake.\nUse keyboard interrupt ";
@@ -123,7 +123,7 @@ public:
 
             // If the command was to "follow", find the angle relative to src
             if(cmd_state == 1){
-              result_dir = determine_src_dir(); // TODO  - DOWNSAMPLE
+              result_dir = determine_src_dir();
               target_angle = result_dir / 1000.0;
             }
           }
@@ -135,25 +135,25 @@ public:
         if(cmd_state == 1){
           std::cout <<  "   STATE: FOLLOW" << std::endl;
           std::cout <<  "   TARGET: " <<  target_angle << std::endl;
-          follow();
+          follow(cmd_start_time);
         }
 
         // Stop
         else if(cmd_state == 3){
           // std::cout <<  "   STATE: GOODBOY" << std::endl;
-          stop(cmd_start_time, CLOCKS_PER_SEC);
+          stop(cmd_start_time);
         }
 
         // Good Boy
         else if(cmd_state == 3){
           // std::cout <<  "   STATE: GOODBOY" << std::endl;
-          good_boy(cmd_start_time, CLOCKS_PER_SEC);
+          good_boy(cmd_start_time);
         }
 
         // Fetch
         else if(cmd_state == 4){
           // std::cout <<  "   STATE: FETCH" << std::endl;
-          fetch(cmd_start_time, CLOCKS_PER_SEC);
+          fetch(cmd_start_time);
         }
 
         // Still (no command)
@@ -179,7 +179,7 @@ public:
     return true;
   }
 
-  void follow(){
+  void follow(int cmd_start_time){
     float angle_err;
     float new_twist_cmds[2];
 
@@ -196,16 +196,15 @@ public:
     twist_cmds[1] = turn_speed;
   }
 
-  void good_boy(cmd_start_time, CLOCKS_PER_SEC){
+  void good_boy(int cmd_start_time){
     // Function to run during good_boy state
 
-    float diff_time; // difference of time from start selection of good boy to now
-    float tenth_diff_time; // decimals of diff_time
+    float dt, mod; // difference of time from start selection of good boy to now
 
-    diff_time = cmd_start_time/CLOCKS_PER_SEC - clock()/CLOCKS_PER_SEC //calculating diff_time
+    dt = (cmd_start_time - clock())/CLOCKS_PER_MS; //calculating diff_time
 
     // check to see if in good_boy for more than four seconds. If so, exit loop
-    if (diff_time > 4) {
+    if (dt > 4000) {
       //CHANGE STATUS
       twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
       twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
@@ -213,9 +212,10 @@ public:
       awaiting_cmd = true;
     }
     else {
-      tenth_diff_time = diff_time % 1;
-      // good boy switches direction every .5 seconds. Check to see if it should be going left or right.
-      if (tenth_diff_time > .5) {
+      mod = (int)dt % 1000;
+      // good boy switches direction every .5 seconds. 
+      // Check to see if it should be going left or right.
+      if (mod > 500) {
             twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
             twist_cmds[1] = -0.8;          // the z (angular) speed (0 - 1)
       }
@@ -226,50 +226,46 @@ public:
     }
   }
 
-  void fetch(cmd_start_time, CLOCKS_PER_SEC){
+  void fetch(int cmd_start_time){
     // Function to run during fetch state
 
-    float diff_time; // difference of time from start selection of fetch to now
-    float tenth_diff_time; // decimals of diff_time
-
-    diff_time = cmd_start_time/CLOCKS_PER_SEC - clock()/CLOCKS_PER_SEC //calculating diff_time
+    float dt;                       // elapsed time
+    dt = (cmd_start_time - clock()) / CLOCKS_PER_MS; //calculating diff_time
 
     // check to see if in fetch for more than four seconds. If so, exit loop
-    if (diff_time > 4) {
+    if (dt > 4000) {
       //CHANGE STATUS
       twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
       twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
       cmd_state = 0;
       awaiting_cmd = true;
     }
-
     else {
-      tenth_diff_time = diff_time % 1;
       // fetch turns direction for 4 seconds. Check to see if it should be going left or right.
       twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
       twist_cmds[1] = 0.4;          // the z (angular) speed (0 - 1)
     }
   }
 
-  void stop(cmd_start_time, CLOCKS_PER_SEC){
+  void stop(int cmd_start_times){
     // Function to run during stop state
 
-    float diff_time; // difference of time from start selection of stop to now
-    float tenth_diff_time; // decimals of diff_time
+    float dt; // difference of time from start selection of stop to now
     float isOdd;
 
-    diff_time = cmd_start_time/CLOCKS_PER_SEC - clock()/CLOCKS_PER_SEC //calculating diff_time
+    dt = (cmd_start_time - clock())/CLOCKS_PER_MS; //calculating diff_time
 
-    // check to see if in fetch for more than four seconds. If so, exit loop
-    if (diff_time > 4) {
+    // check to see if in stop for more than four seconds. If so, exit loop
+    if (dt > 4000) {
       //CHANGE STATUS
       twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
       twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
       cmd_state = 0;
       awaiting_cmd = true;
     }
+
     else {
-      isOdd = floor(diff_time)%2;
+      isOdd = (int)floor(dt/1000) % 2;
       if (isOdd){
         twist_cmds[0] = 0.8;          // the x (forward) speed (between 0 - 1)
         twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
