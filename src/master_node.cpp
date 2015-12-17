@@ -141,7 +141,7 @@ public:
 
         // If an audio signal has been found, process it
         if (result_detect != -1){
-          std::cout << "    Prosody-based command detected." << std::endl;
+          // std::cout << "    Prosody-based command detected." << std::endl;
 
           // Once audio signal has been found and saved to file, 
           // load the file, run prosody script, determine command
@@ -472,46 +472,46 @@ public:
     return res;
   }
 
-  int create_models(){
-    std::cout << "    create_models()" << std::endl;
-    int nargs = 3;
-    char* args[] = {"", "createModels", "createModels"};
-    std::cout << "  call_python_method" << std::endl;
-    PyObject *sysPath, *programName, *pName, *pModule, *pDict, *pFunc, *pValue, *pArgs;
-    int res;
+  // int create_models(){
+  //   std::cout << "    create_models()" << std::endl;
+  //   int nargs = 3;
+  //   char* args[] = {"", "createModels", "createModels"};
+  //   std::cout << "  call_python_method" << std::endl;
+  //   PyObject *sysPath, *programName, *pName, *pModule, *pDict, *pFunc, *pValue, *pArgs;
+  //   int res;
 
-    PySys_SetArgv(nargs, args);
+  //   PySys_SetArgv(nargs, args);
 
-    // Load the module object
-    // pModule = PyImport_Import(pName);
-    std::cout << "    Module: " << args[1] << std::endl;
-    pModule = PyImport_ImportModule(args[1]);
-    std::cout << "    pModule:  " << pModule << std::endl;
+  //   // Load the module object
+  //   // pModule = PyImport_Import(pName);
+  //   std::cout << "    Module: " << args[1] << std::endl;
+  //   pModule = PyImport_ImportModule(args[1]);
+  //   std::cout << "    pModule:  " << pModule << std::endl;
 
-    if(pModule == 0){
-      std::cout << "    Could not find the python module." << std::endl;
-      std::cout << "    Please run this node from the module's directory." << std::endl;
-      // Clean up
-      Py_DECREF(pModule);
+  //   if(pModule == 0){
+  //     std::cout << "    Could not find the python module." << std::endl;
+  //     std::cout << "    Please run this node from the module's directory." << std::endl;
+  //     // Clean up
+  //     Py_DECREF(pModule);
 
-      return -1;
-    }
+  //     return -1;
+  //   }
 
-    pDict = PyModule_GetDict(pModule);
-    pFunc = PyDict_GetItemString(pDict, args[2]);
-    std::cout << "    Calling \"" << args[2] << "()\":" << std::endl;
-    if (PyCallable_Check(pFunc)) 
-    {
-      // Prepare the argument list for the call
-      pModels = PyObject_CallObject(pFunc, NULL);
-    }
+  //   pDict = PyModule_GetDict(pModule);
+  //   pFunc = PyDict_GetItemString(pDict, args[2]);
+  //   std::cout << "    Calling \"" << args[2] << "()\":" << std::endl;
+  //   if (PyCallable_Check(pFunc)) 
+  //   {
+  //     // Prepare the argument list for the call
+  //     pModels = PyObject_CallObject(pFunc, NULL);
+  //   }
 
-    // Clean up
-    // Py_DECREF(pFunc);
-    // Py_DECREF(pDict);
-    Py_DECREF(pModule);
-    return 1;
-  }
+  //   // Clean up
+  //   // Py_DECREF(pFunc);
+  //   // Py_DECREF(pDict);
+  //   Py_DECREF(pModule);
+  //   return 1;
+  // }
 
   /* 
   determine_src_dir()
@@ -526,6 +526,7 @@ public:
     int nargs = 3;
     char* args[] = {"", "cross_correlation", "run"};
     res = call_python_method(nargs, args);
+    std::cout << "Direction:" << std::endl;
     return res;
   }
 
@@ -537,7 +538,7 @@ public:
   */ 
   int call_python_method(int argc, char *argv[])
   {
-    std::cout << "  call_python_method" << std::endl;
+    // std::cout << "  call_python_method" << std::endl;
     PyObject *sysPath, *programName, *pName, *pModule, *pDict, *pFunc, *pValue, *pArgs;
     int res;
 
@@ -553,9 +554,9 @@ public:
 
     // Load the module object
     // pModule = PyImport_Import(pName);
-    std::cout << "    Module: " << argv[1] << std::endl;
+    // std::cout << "    Module: " << argv[1] << std::endl;
     pModule = PyImport_ImportModule(argv[1]);
-    std::cout << "    pModule:  " << pModule << std::endl;
+    // std::cout << "    pModule:  " << pModule << std::endl;
 
     if(pModule == 0){
       std::cout << "    Could not find the python module." << std::endl;
@@ -568,7 +569,7 @@ public:
 
     pDict = PyModule_GetDict(pModule);
     pFunc = PyDict_GetItemString(pDict, argv[2]);
-    std::cout << "    Calling \"" << argv[2] << "()\":" << std::endl;
+    // std::cout << "    Calling \"" << argv[2] << "()\":" << std::endl;
     if (PyCallable_Check(pFunc)) 
     {
       // Prepare the argument list for the call
@@ -600,8 +601,8 @@ public:
       if (pValue != NULL) 
       {
         res = PyLong_AsLong(pValue);
-        std::cout << "    pValue: " << pValue << std::endl;
-        std::cout << "    Result: " << res << std::endl;
+        // std::cout << "    pValue: " << pValue << std::endl;
+        // std::cout << "    Result: " << res << std::endl;
         Py_DECREF(pValue);
       }
       else 

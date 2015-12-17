@@ -30,8 +30,8 @@ def predict(filename, modelsDict):
   bestScore = -10000
   for emotion in emotions: 
     model = modelsDict[emotion]
-    print emotion
-    print "model+ " + str(model)
+    # print emotion
+    # print "model+ " + str(model)
     model.predict(mfcc)
     score = modelsDict[emotion].score(mfcc)
     aveScore = sum(score)/len(score)
@@ -46,7 +46,3 @@ def predict_wrapper():
   filename = "../wav/sample.wav"
   dictionary = pickle.load(open( "save.p", "rb" ) )
   return predict(filename, dictionary)
-
-
-if __name__ == '__main__':
-  print predict_wrapper()

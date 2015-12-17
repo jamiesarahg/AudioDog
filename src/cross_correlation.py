@@ -203,8 +203,8 @@ class Localizer(object):
 
 		tdoa = self.samp_intvl * timeshift # Time difference of arrival
 		sig_dist = tdoa * self.c
-		print "		tdoa:", tdoa
-		print "		signal distance:", sig_dist
+		# print "		tdoa:", tdoa
+		# print "		signal distance:", sig_dist
 
 		if (sig_dist != 0):
 			angle = math.atan( 
@@ -218,7 +218,7 @@ class Localizer(object):
 		# c = 340.29 m / s
 
 def run():
-	filename = "../wav/sample.wav"
+	filename = "../wav/test_for_antonia.wav"
 	num_chunks = 20
 	chunked_audio = []
 
