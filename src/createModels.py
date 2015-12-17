@@ -8,4 +8,12 @@ def createModels():
 	direction = {'Close': 4, 'Far':4}
 
 	extract = cd.DataIntake(emotions, people)
-	extract.createModelDictionary()
+	for person in extract.names:
+		extract.collectTrainingData(person)
+	result_dict = extract.createModelDictionary()
+	print result_dict
+	return 1
+
+
+if __name__ == '__main__':
+	createModels()

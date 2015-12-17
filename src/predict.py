@@ -1,6 +1,9 @@
+from sklearn.mixture import GMM
 import CleaningData as cd
+import trained_dict as td
+import librosa
 
-def predict(self, filename, modelsDict):
+def predict(filename, modelsDict):
   ''' Predicts emotion from emotions of input soundclip
       emotions: list of emotions used
 
@@ -12,18 +15,31 @@ def predict(self, filename, modelsDict):
         index of best emotion
   '''
   emotions = ["come", "stop", "goodBoy", "fetch"]
+  people = ['jamie', 'susie']
 
-  y, sr = cd.cleanData(filename)
+  di= cd.DataIntake(emotions, people)
+  y, sr = di.cleanData(filename)
   mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
-
 
   bestEmotion = ""
   bestScore = -10000
   for emotion in emotions: 
-    modelsDict[emotion].predict(mfcc)
+    model = modelsDict[emotion]
+    print model
+    model.predict(mfcc)
     score = modelsDict[emotion].score(mfcc)
     aveScore = sum(score)/len(score)
     if aveScore > bestScore:
       bestScore = aveScore
       bestEmotion = emotion
+
   return emotions.index(bestEmotion)
+
+
+def predict_wrapper():
+  filename = "../wav/sample.wav"
+  predict(filename, td.dictionary)
+
+
+if __name__ == '__main__':
+  predict_wrapper()
