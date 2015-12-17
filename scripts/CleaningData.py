@@ -12,24 +12,30 @@ from sklearn.mixture import GMM
 class DataIntake(object):
   ''' Exracts MFCCs from audio files
   '''
-  def __init__(self):
+  def __init__(self, emotions, people):
+
+
     self.trainingDataX = {}
-    self.y_current = None
-    self.sr_current = None
-    self.emotionMap = {}
+    self.testingDataX = {}
+    self.y = None
+    self.sr = None
     self.come = []
     self.modelsDict={}
+    self.emotions = emotions
+    self.names = []
+
+    self. createNamesList(people)
 
 
-  # def CreateEmotionMap (self, emotions):
-  #   ''' Creates a map from emotions to integers
+  def createNamesList(self, people):
+    ''' Creates list of names from training data from folders'''
 
-  #       emotions: list of emotions taken in by user
-  #   '''
-  #   for i in range(0,len(emotions)): 
-  #     self.emotionMap[emotions[i]] = i
+    for person in people:
+      for key in direction.keys():
+        for i in range(1,1+direction[key]):
+          self.names.append(person+key+str(i))
 
-  def CleanData(self, filename):
+  def cleanData(self, filename):
     ''' Cleans data by removing the time before and after the user speaks
 
         filename: name of audio file
@@ -37,27 +43,43 @@ class DataIntake(object):
     #saved code incase we want to use it, but pelase delete in case we don't
     y, sr = librosa.load(filename)
 
-    #remove the first 5000 frames
+    # remove the first 5000 frames
+
+    #used for debugging the cropping of wav file
+    # plot.subplot(2, 1, 1)
+    # plot.plot(y)
+    # plot.title(filename)
+
+
     y=y[5000:] 
 
 
     #removes the time before the user speaks
-    for i in range(y.size):
-      if y[i]> .3: #waits for the volume to go over .3
-        if y[i+500]>.3: #make sure that it's not a blip and stays over .3 for at least 500 frames
-          y = y[i-1000:] #crop audio clip to 1000 places before the volume was determined to go above .3
+    for j in range(y.size):
+      if y[j]> .18 or y[j]< -.15: #waits for the volume to go over .3
           break #stops checking! Makes sure it doesn't continue to clip
 
     #removes time after user finishes speaking
     for i in reversed(range(y.size)):
-      if y[i]> .3: #waits for the volume to go over .3, checking in reverse order
-        y = y[:i+1000] #crop audio clip to 1000 places after the volume went below .3
+      if y[i]> .15 or y[i] < -.15: #waits for the volume to go over .3, checking in reverse order
+        y = y[:i+2000] #crop audio clip to 1000 places after the volume went below .3
         break #stops checking! Makes sure it doesn't continue to clip
+
+    y = y[j-1000:] #crop audio clip to 1000 places before the volume was determined to go above .3
+
 
     self.y = y
     self.sr = sr
 
-  def MFCCextraction(self, emotion, dataType): 
+    return y, sr
+
+    # used for debugging of wav file
+    # plot.subplot(2, 1, 2)
+    # plot.plot(y)
+    # plot.title(str(j+5000)+'/'+str(i+5000))
+    # plot.show()
+
+  def mfccExtraction(self, emotion, dataType): 
     '''  Extracts MFCCs from audio file
 
           target: emotion being targeted as an int
@@ -67,12 +89,13 @@ class DataIntake(object):
     mfcc = librosa.feature.mfcc(y=self.y, sr=self.sr, n_mfcc=13)
     if dataType == 'training':
       if emotion in self.trainingDataX.keys():
-        self.trainingDataX[emotion].append(mfcc)
+        self.trainingDataX[emotion] = np.hstack((self.trainingDataX[emotion], mfcc))
       else:
         self.trainingDataX[emotion] = mfcc
-        print emotion
+    if dataType == 'testing':
+        self.testingDataX[emotion] = mfcc
 
-  def PlotMFCC(self):
+  def plotMFCC(self):
     ''' Visualizes the MFCCs 
     '''
     #plot results
@@ -82,63 +105,97 @@ class DataIntake(object):
     plot.title(emotion)
 
 
-  def CollectTrainingData(self, name, emotions):
+  def collectTrainingData(self, name):
     ''' Extracts MFCCs from audio files
 
         name: name of user speaking
         emotions: list of emotions taken in by user
     '''
-    for emotion in emotions:
-      # emotNum = self.emotionMap[emotion]
+    for emotion in self.emotions:
       filename = 'trainingData/'+emotion+'/'+name+'.wav'
-      self.CleanData(filename)
-      self.MFCCextraction(emotion, 'training')
-    print self.trainingDataX
+      self.cleanData(filename)
+      self.mfccExtraction(emotion, 'training')
 
+  def collectTestingData(self, name):
+    ''' Extracts MFCCs from audio files
 
-  def CreateModelDictionary(self, emotions):
-    for i in range (0,len(emotions)):
-      # print emotions[i]
-      if emotions[i] not in self.modelsDict.keys():
-        model = self.CreateModel(emotions[i])
-        self.modelsDict[emotions[i]] = model
+        name: name of user speaking
+        emotions: list of emotions taken in by user
+    '''
+    for emotion in self.emotions:
+      filename = 'trainingData/'+emotion+'/'+name+'.wav'
+      self.cleanData(filename)
+      self.mfccExtraction(emotion, 'testing')
 
+  def createModel(self, emotion):
+    ''' fits GMM model to training data for an emotion
 
-  def CreateModel(self, emotion):
-    model = GMM().fit(self.trainingDataX[emotion])
+        emotion: corresponding emotion to train to
+    '''
+
+    model =GMM()
+    model.fit(self.trainingDataX[emotion].transpose())
     return model
 
-  # def predict(self, emotions, testMFCCs):
-  #   bestEmotion = ""
-  #   bestScore = 0
-  #   for emotion in emotions: 
-  #     score = modelsDict[emotion].score(testMFCCs)
-  #     if score > bestScore:
-  #       bestScore=score
-  #       bestEmotion = emotion
+  def createModelDictionary(self):
+    ''' Builds gausian model for each emotion in self.emotions'''
 
+    for i in range(0,len(self.emotions)):
+        model = self.createModel(self.emotions[i])
+        self.modelsDict[self.emotions[i]] = model
+    return self.modelsDict
+
+  def predict(self, testMFCC):
+    ''' Predicts emotion from self.emotions of input soundclip
+
+        testMFCC: extracted MFCCs from a short soundclip
+
+        returns: 
+          bestEmotion: predicted emotion based on scores for matching of each emotion
+          bestScore: the score that predicted that emotion
+    '''
+    bestEmotion = ""
+    bestScore = -10000
+    for emotion in self.emotions: 
+      self.modelsDict[emotion].predict(testMFCC)
+      score = self.modelsDict[emotion].score(testMFCC)
+      aveScore = sum(score)/len(score)
+      if aveScore > bestScore:
+        bestScore = aveScore
+        bestEmotion = emotion
+    return bestEmotion, bestScore
+
+  def crossValidation(self):
+    ''' Runs a cross validation on input sound files. Uses one test sample each time
+    '''
+    for i in range(len(self.names)):
+      for j in range(len(self.names)):
+        if i == j:
+          self.collectTestingData(self.names[j])
+        else:
+          self.collectTrainingData(self.names[j])
+
+      self.createModelDictionary()
+
+      for emotion in self.emotions:
+        bestEmotion, bestScore = self.predict(self.testingDataX[emotion].transpose())
+        print 'result', emotion, bestEmotion, bestScore
+      
+      self.trainingDataX = {}
+      self.testingDataX = {}
+      self.modelsDict = {}
 
 
 
 if __name__ == '__main__':
-  extract = DataIntake()
+  #emotions that we will be calculating
   emotions = ["come", "stop", "goodBoy", "fetch"]
-  # extract.CreateEmotionMap(emotions)
-  print extract.emotionMap
-  extract.CollectTrainingData('Jamie_Gorson', emotions)
-  extract.CreateModelDictionary(emotions)
-  # extract.TrainingData()
-  # plot.figure(1)
-  # i=1
-  # name = 'Jamie_Gorson'
-  
 
-  # plot.figure(2)
-  # plot.title('Susie')
-  # name = 'Susie_Grimshaw'
-  # i=1
-  # for emotion in emotions:
-  #   filename = 'trainingData/'+emotion+'/'+name+'.wav'
-  #   extract.MFCCextraction('Susie_Grimshaw', emotion, str(i))
-  #   i+=1
-  # plot.show()
+  #collect training data names from folders
+  people = ['jamie', 'susie']
+  direction = {'Close': 4, 'Far':4}#, 'Turn':2}
+
+
+
+  extract = DataIntake(emotions, people)
+  extract.crossValidation()
