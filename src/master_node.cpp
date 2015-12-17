@@ -95,11 +95,7 @@ public:
     // Misc variables
     int result_detect, result_pros, result_dir;
     signal(SIGINT, interrupt); 
-
-    
-
     // --------------------------------------------------------------
-
     
     // std::cout << "Creating models for prosody analysis." << std::endl;
     // create_models();
@@ -149,8 +145,7 @@ public:
 
           // Once audio signal has been found and saved to file, 
           // load the file, run prosody script, determine command
-          // result_pros = analyze_prosody(); // UPDATE TO RUN PROSODY
-          result_pros = 0; // DEBUG
+          result_pros = analyze_prosody(); // UPDATE TO RUN PROSODY
 
           // If the prosody analysis did not fail:
           if (result_pros != -1){
@@ -352,8 +347,11 @@ public:
     sf = sf_open_fd(0, SFM_READ, &info, true);
     if (sf == NULL)
       {
-      printf("Failed to read stdin.\n");
+      std::cout << "Failed to read stdin." << std::endl;
       exit(-1);
+      }
+    else{
+      std::cout << sf << std::endl;
       }
     /* Print some of the info, and figure out how much data to read. */
     sf_count_t frames = 176400*2;
@@ -372,7 +370,9 @@ public:
     Load raw data into the circular buffer and write the data to temp.out
     when appropriate.
     */
+
     out = sf_open("../wav/sample.wav",SFM_WRITE, &info);
+    std::cout << "Saved file to '../wav/sample.wav'" << std::endl;
     while (((num = sf_read_float (sf, incoming_section, num_items)) > 0) &&
         (item_count < item_goal)) {
       for (int in_index = 0; in_index < num; in_index++) {
@@ -512,7 +512,6 @@ public:
     Py_DECREF(pModule);
     return 1;
   }
-
 
   /* 
   determine_src_dir()
