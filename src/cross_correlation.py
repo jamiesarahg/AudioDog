@@ -218,7 +218,7 @@ class Localizer(object):
 		# c = 340.29 m / s
 
 def run():
-	filename = "../wav/jamieClose1.wav"
+	filename = "../wav/sample.wav"
 	num_chunks = 20
 	chunked_audio = []
 

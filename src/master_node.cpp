@@ -1,3 +1,19 @@
+/*
+Computational Robotics 2015
+Project AudiodDog
+
+Authors:
+  Antonia Elsen
+  Jamie Gorson
+  Susie Grimshaw
+  Ian Hill
+
+master_node.cpp
+  C++ script containing ROS Node
+  Calls python scripts to detect spoken commands, analyze the prosody of the 
+  oral command, and determine the direction of the source audio signal.
+*/
+
 #include <python2.7/Python.h> 
 #include <iostream>
 #include <ctime>
@@ -9,20 +25,15 @@
 #include <sensor_msgs/LaserScan.h>
 #include <neato_node/Bump.h>
 
-
-//http://stackoverflow.com/questions/7998816/do-pyimport-importmodule-and-import-statement-load-into-different-namespace
-//http://www.tutorialspoint.com/python/python_further_extensions.htm
-//http://members.gamedev.net/sicrane/articles/EmbeddingPythonPart1.html
-//https://docs.python.org/2/extending/embedding.html
-//https://books.google.com/books?id=n11lCgAAQBAJ&pg=PA140&lpg=PA140&dq=ros+laserscan+ranges&source=bl&ots=zWvUw5jUCO&sig=DNNW87ol3By0hyFbKaxTF89wYQY&hl=en&sa=X&ved=0ahUKEwjajsL_5N_JAhVHOiYKHcMhCWAQ6AEIWzAJ#v=onepage&q=ros%20laserscan%20ranges&f=false
-//http://ros-users.122217.n3.nabble.com/SICK-LMS-Subscriber-Node-td970412.html
-
 // Keyboard Interrupt Handler
 volatile sig_atomic_t flag = 0;
 void interrupt(int sig){ // can be called asynchronously
   flag = 1; // set flag
 }
 
+
+
+// Main Class - ROS Node
 class RobotDriver
 {
 private:
@@ -30,15 +41,21 @@ private:
   ros::Publisher cmd_vel_pub_;
   ros::Subscriber scanSub;
 
-  bool awaiting_cmd;             // true: command found, acting; false: listening
-  float twist_cmds[2];          // movement commands {forward, angular}
-  int cmd_state;              // 0: still, 1: follow, 2: still, 3: good boy, 4: fetch
-  float current_angle, start_angle, target_angle;
-
+  // State variables
+  std::string cmd_file;       // Filename of audio file to process
+  float twist_cmds[2];        // movement commands {forward, angular}
+  bool awaiting_cmd;          // true: command found, acting; false: listening
+  int cmd_state;              // 0: still, 1: follow, 2: "stop", 
+                              // 3: good boy, 4: fetch
+ 
+  // Time variables
   long CLOCKS_PER_MS;
   unsigned long loop_start_time, loop_current_time, loop_dt, cmd_start_time;
 
-  std::string cmd_file;
+  // Direction variables
+  float current_angle, start_angle, target_angle;
+
+  
 
 public:
   // ROS Node Initialization
@@ -46,26 +63,43 @@ public:
   {
     nh_ = nh;
     cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
-    cmd_file = "../wav/jamieClose1.wav";  // to be renamed
+    cmd_file = "../wav/sample.wav";
   }
 
-  // Main loop
-  bool run()
-  {
-    int result_detect, result_pros, result_dir;
-    signal(SIGINT, interrupt); 
-    geometry_msgs::Twist base_cmd;
-    awaiting_cmd = true;
-    cmd_state = 0;
+  /*
+  run()
+  Main method.
 
-    // Time tracking variables
+  Creates prosody analysis model dictionary, 
+  Runs main loop.
+
+  Loop contains:
+   - audio detection script, 
+   - prosody analysis script, 
+   - source direction calculation script.
+  */
+  bool run()
+  { 
+    // State variables
+    cmd_state = 0;
+    awaiting_cmd = true;
+    geometry_msgs::Twist base_cmd;
+
+    // Time variables
     CLOCKS_PER_MS = CLOCKS_PER_SEC/1000.0;
     loop_start_time = clock();
+
+    // Misc variables
+    int result_detect, result_pros, result_dir;
+    signal(SIGINT, interrupt); 
+
+    // --------------------------------------------------------------
 
     std::cout << std::endl << "Woof! I'm awake.\nUse keyboard interrupt ";
     std::cout << "when you want me to stop." << std::endl << std::endl;
     
     // create model dictionary # TODO
+    create_models();
         // create_models.py
         // predict.py -> dictionary  created from create_models
           // pass in wave filename
@@ -81,7 +115,6 @@ public:
       }
 
       loop_start_time = loop_current_time;
-      std::cout << std::endl;
       
 
       // Default twist commands: set stationary
@@ -101,7 +134,7 @@ public:
 
       
       // Call function that searches for audio signal, saves to wav if found
-        // updates "test.wav"
+        // updates "sample.wav"
       if (awaiting_cmd){
         std::cout << "AWAITING CMD" << std::endl;
         result_detect = detect_command();
@@ -133,8 +166,8 @@ public:
         // std::cout << "STATE:" << cmd_state << std::endl;
         //Follow
         if(cmd_state == 1){
-          std::cout <<  "   STATE: FOLLOW" << std::endl;
-          std::cout <<  "   TARGET: " <<  target_angle << std::endl;
+          // std::cout <<  "   STATE: FOLLOW" << std::endl;
+          // std::cout <<  "   TARGET: " <<  target_angle << std::endl;
           follow(cmd_start_time);
         }
 
@@ -314,6 +347,13 @@ public:
     return res;
   }
 
+  void create_models(){
+    std::cout << "    create_models()" << std::endl;
+    int nargs = 3;
+    char* args[] = {"", "createModels_rev1", "createModels"};
+    call_python_method(nargs, args);
+  }
+
 
   /* 
   determine_src_dir()
@@ -357,14 +397,12 @@ public:
     // pModule = PyImport_Import(pName);
     std::cout << "    Module: " << argv[1] << std::endl;
     pModule = PyImport_ImportModule(argv[1]);
-    // std::cout << "    pModule:  " << pModule << std::endl;
+    std::cout << "    pModule:  " << pModule << std::endl;
 
     if(pModule == 0){
       std::cout << "    Could not find the python module." << std::endl;
       std::cout << "    Please run this node from the module's directory." << std::endl;
       // Clean up
-      Py_DECREF(pFunc);
-      Py_DECREF(pDict);
       Py_DECREF(pModule);
 
       return -1;
