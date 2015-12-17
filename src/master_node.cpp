@@ -58,15 +58,19 @@ private:
   float current_angle, start_angle, target_angle;
   PyObject *pModels;
 
-  
+  // Input Stream variables
+  SNDFILE* sf;
+  SF_INFO info;
 
 public:
   // ROS Node Initialization
-  RobotDriver(ros::NodeHandle &nh)
+  RobotDriver(ros::NodeHandle &nh, SNDFILE* soundfile, SF_INFO infostruct)
   {
     nh_ = nh;
     cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
     cmd_file = "../wav/sample.wav";
+    sf = soundfile;
+    info = infostruct;
   }
 
   /*
@@ -140,7 +144,7 @@ public:
         // updates "sample.wav"
       if (awaiting_cmd){
         std::cout << "AWAITING CMD" << std::endl;
-        result_detect = detect_command();
+        result_detect = detect_command(sf, info);
         // result_detect = 1;
 
         // If an audio signal has been found, process it
@@ -336,25 +340,15 @@ public:
 
   }
 
-  int detect_command()
+  int detect_command(SNDFILE* sf, SF_INFO info)
   {
-    SNDFILE *sf;
-    SF_INFO info;
     int num_channels;
     int num, num_items;
     num = 1;
     int f,sr,c;
     int i,j;
     SNDFILE *out;
-    
-    /* Open stdin to capture WAV data. */
-    info.format = SF_FORMAT_WAV;
-    sf = sf_open_fd(0, SFM_READ, &info, true);
-    if (sf == NULL)
-      {
-      printf("Failed to read stdin.\n");
-      exit(-1);
-      }
+
     /* Print some of the info, and figure out how much data to read. */
     sf_count_t frames = 176400*2;
     int item_goal = 176400*4;
@@ -392,7 +386,6 @@ public:
         }
       }
     }
-    sf_close(sf);
     sf_close(out);
     delete [] incoming_section;
     delete [] outgoing_section;
@@ -631,11 +624,23 @@ int main(int argc, char** argv)
   ros::init(argc, argv, "audio_dog");
   ros::NodeHandle nh;
 
+  // Initialize the input stream
+  SNDFILE *sf;
+  SF_INFO info;
+  info.format = SF_FORMAT_WAV;
+  sf = sf_open_fd(0, SFM_READ, &info, true);
+  if (sf == NULL)
+    {
+    printf("Failed to read stdin.\n");
+    exit(-1);
+    }
+
   // Initialize the Python Interpreter
   Py_Initialize();
 
-  RobotDriver driver(nh);
+  RobotDriver driver(nh, sf, info);
   driver.run();
 
   Py_Finalize();
+  sf_close(sf);
 }
