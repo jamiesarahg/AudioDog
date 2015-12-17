@@ -32,10 +32,11 @@ private:
 
   bool awaiting_cmd;             // true: command found, acting; false: listening
   float twist_cmds[2];          // movement commands {forward, angular}
-  int cmd_state;              // 0: stop, 1: follow, 2: good boy
+  int cmd_state;              // 0: still, 1: follow, 2: still, 3: good boy, 4: fetch
   float current_angle, start_angle, target_angle;
 
-  unsigned long loop_start_time, loop_current_time, loop_dt;
+  long CLOCKS_PER_MS;
+  unsigned long loop_start_time, loop_current_time, loop_dt, cmd_start_time;
 
   std::string cmd_file;
 
@@ -52,14 +53,13 @@ public:
   bool run()
   {
     int result_detect, result_pros, result_dir;
-    long loop_current_time;
     signal(SIGINT, interrupt); 
     geometry_msgs::Twist base_cmd;
     awaiting_cmd = true;
     cmd_state = 0;
 
     // Time tracking variables
-    long CLOCKS_PER_MS = CLOCKS_PER_SEC/1000.0;
+    CLOCKS_PER_MS = CLOCKS_PER_SEC/1000.0;
     loop_start_time = clock();
 
     std::cout << std::endl << "Woof! I'm awake.\nUse keyboard interrupt ";
@@ -89,7 +89,7 @@ public:
       base_cmd.linear.y = 0;
       base_cmd.angular.z = 0;
 
-      // Catch keyboard interrupts to stop node.
+      // Catch keyboard interrupts to still node.
       if(flag)
       {
         std::cout << "Caught! Keyboard interrupt.";
@@ -119,10 +119,11 @@ public:
             // Set the state to the command was found
             cmd_state = result_pros;
             awaiting_cmd = false;
+            cmd_start_time = clock();
 
             // If the command was to "follow", find the angle relative to src
             if(cmd_state == 1){
-              result_dir = determine_src_dir(); // TODO  - DOWNSAMPLE
+              result_dir = determine_src_dir();
               target_angle = result_dir / 1000.0;
             }
           }
@@ -134,23 +135,36 @@ public:
         if(cmd_state == 1){
           std::cout <<  "   STATE: FOLLOW" << std::endl;
           std::cout <<  "   TARGET: " <<  target_angle << std::endl;
-          follow();
+          follow(cmd_start_time);
+        }
+
+        // Stop
+        else if(cmd_state == 3){
+          // std::cout <<  "   STATE: GOODBOY" << std::endl;
+          stop(cmd_start_time);
         }
 
         // Good Boy
-        else if(cmd_state == 2){
+        else if(cmd_state == 3){
           // std::cout <<  "   STATE: GOODBOY" << std::endl;
-          good_boy(); // TODO : to be completed by prosody team
-          
+          good_boy(cmd_start_time);
         }
 
-        // Stop (no command)
+        // Fetch
+        else if(cmd_state == 4){
+          // std::cout <<  "   STATE: FETCH" << std::endl;
+          fetch(cmd_start_time);
+        }
+
+        // Still (no command)
         else if(cmd_state == 0){
-          // std::cout <<  "   STATE: 0 (STOP)" << std::endl;
+          // std::cout <<  "   STATE: 0 (STILL)" << std::endl;
           twist_cmds[0] = 0.0;
           twist_cmds[1] = 0.0;
           awaiting_cmd = true;
         }
+
+
       }
 
 
@@ -165,7 +179,7 @@ public:
     return true;
   }
 
-  void follow(){
+  void follow(int cmd_start_time){
     float angle_err;
     float new_twist_cmds[2];
 
@@ -182,24 +196,85 @@ public:
     twist_cmds[1] = turn_speed;
   }
 
-  void good_boy(){
-    // TODO : to be completed by prosody team
-    // run this function on every iteration of loop
-    // for example: if "Goodboy" makes the neato turn for three seconds
-    // check the time elapsed, if there is still time, keep turning
-    // if time is up, stop turning
+  void good_boy(int cmd_start_time){
+    // Function to run during good_boy state
 
-    //if the command is finished, let the neato listen for another command
-    /*
-    if (... enter finished conditional here){
+    float dt, mod; // difference of time from start selection of good boy to now
+
+    dt = (cmd_start_time - clock())/CLOCKS_PER_MS; //calculating diff_time
+
+    // check to see if in good_boy for more than four seconds. If so, exit loop
+    if (dt > 4000) {
+      //CHANGE STATUS
+      twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
+      twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
       cmd_state = 0;
       awaiting_cmd = true;
     }
-    */
+    else {
+      mod = (int)dt % 1000;
+      // good boy switches direction every .5 seconds. 
+      // Check to see if it should be going left or right.
+      if (mod > 500) {
+            twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
+            twist_cmds[1] = -0.8;          // the z (angular) speed (0 - 1)
+      }
+      else {
+            twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
+            twist_cmds[1] = 0.8;          // the z (angular) speed (0 - 1)
+      }
+    }
+  }
 
+  void fetch(int cmd_start_time){
+    // Function to run during fetch state
 
-    twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
-    twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
+    float dt;                       // elapsed time
+    dt = (cmd_start_time - clock()) / CLOCKS_PER_MS; //calculating diff_time
+
+    // check to see if in fetch for more than four seconds. If so, exit loop
+    if (dt > 4000) {
+      //CHANGE STATUS
+      twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
+      twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
+      cmd_state = 0;
+      awaiting_cmd = true;
+    }
+    else {
+      // fetch turns direction for 4 seconds. Check to see if it should be going left or right.
+      twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
+      twist_cmds[1] = 0.4;          // the z (angular) speed (0 - 1)
+    }
+  }
+
+  void stop(int cmd_start_times){
+    // Function to run during stop state
+
+    float dt; // difference of time from start selection of stop to now
+    float isOdd;
+
+    dt = (cmd_start_time - clock())/CLOCKS_PER_MS; //calculating diff_time
+
+    // check to see if in stop for more than four seconds. If so, exit loop
+    if (dt > 4000) {
+      //CHANGE STATUS
+      twist_cmds[0] = 0.0;          // the x (forward) speed (between 0 - 1)
+      twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
+      cmd_state = 0;
+      awaiting_cmd = true;
+    }
+
+    else {
+      isOdd = (int)floor(dt/1000) % 2;
+      if (isOdd){
+        twist_cmds[0] = 0.8;          // the x (forward) speed (between 0 - 1)
+        twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
+      } 
+      else {
+        twist_cmds[0] = -0.8;          // the x (forward) speed (between 0 - 1)
+        twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
+      }
+    }
   }
 
   int calc_angle_error(){
