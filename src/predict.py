@@ -2,6 +2,7 @@ from sklearn.mixture import GMM
 import CleaningData as cd
 import trained_dict as td
 import librosa
+import pickle
 
 def predict(filename, modelsDict):
   ''' Predicts emotion from emotions of input soundclip
@@ -20,12 +21,16 @@ def predict(filename, modelsDict):
   di= cd.DataIntake(emotions, people)
   y, sr = di.cleanData(filename)
   mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=13)
+  mfcc = mfcc.transpose()
+  # print "mfcc: " + str(mfcc)
+  # print "mfcc shape: " + str(mfcc.shape)
 
   bestEmotion = ""
   bestScore = -10000
   for emotion in emotions: 
     model = modelsDict[emotion]
-    print model
+    print emotion
+    print "model+ " + str(model)
     model.predict(mfcc)
     score = modelsDict[emotion].score(mfcc)
     aveScore = sum(score)/len(score)
@@ -37,8 +42,10 @@ def predict(filename, modelsDict):
 
 
 def predict_wrapper():
-  filename = "../wav/sample.wav"
-  predict(filename, td.dictionary)
+  #change this filname
+  filename = "trainingData/come/jamieClose1.wav"
+  dictionary = pickle.load(open( "save.p", "rb" ) )
+  predict(filename, dictionary)
 
 
 if __name__ == '__main__':
