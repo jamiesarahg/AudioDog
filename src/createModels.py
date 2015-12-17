@@ -12,7 +12,7 @@ def createModels():
 		extract.collectTrainingData(person)
 	result_dict = extract.createModelDictionary()
 	print result_dict
-	return 1
+	return result_dict
 
 
 if __name__ == '__main__':

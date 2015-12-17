@@ -145,6 +145,7 @@ class DataIntake(object):
 
     for i in range(0,len(self.emotions)):
         model = self.createModel(self.emotions[i])
+        print "model:", model
         self.modelsDict[self.emotions[i]] = model
     return self.modelsDict
 

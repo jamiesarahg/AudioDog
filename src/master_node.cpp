@@ -56,6 +56,7 @@ private:
 
   // Direction variables
   float current_angle, start_angle, target_angle;
+  PyObject *pModels;
 
   
 
@@ -95,15 +96,13 @@ public:
     int result_detect, result_pros, result_dir;
     signal(SIGINT, interrupt); 
 
+    
+
     // --------------------------------------------------------------
 
     
-    std::cout << "Creating models for prosody analysis." << std::endl;
-    // create model dictionary # TODO
-    create_models();
-        // create_models.py
-        // predict.py -> dictionary  created from create_models
-          // pass in wave filename
+    // std::cout << "Creating models for prosody analysis." << std::endl;
+    // create_models();
 
     std::cout << std::endl << "Woof! I'm awake.\nUse keyboard interrupt ";
     std::cout << "when you want me to stop." << std::endl << std::endl;
@@ -145,10 +144,12 @@ public:
 
         // If an audio signal has been found, process it
         if (result_detect != -1){
+          std::cout << "    Prosody-based command detected." << std::endl;
 
           // Once audio signal has been found and saved to file, 
           // load the file, run prosody script, determine command
-          result_pros = analyze_prosody(); // UPDATE TO RUN PROSODY
+          // result_pros = analyze_prosody(); // UPDATE TO RUN PROSODY
+          result_pros = 2; // DEBUG
 
           // If the prosody analysis did not fail:
           if (result_pros != -1){
@@ -157,6 +158,7 @@ public:
             cmd_state = result_pros;
             awaiting_cmd = false;
             cmd_start_time = clock();
+            std::cout << "STATE: " << cmd_state << std::endl;
 
             // If the command was to "follow", find the angle relative to src
             if(cmd_state == 1){
@@ -176,7 +178,7 @@ public:
         }
 
         // Stop
-        else if(cmd_state == 3){
+        else if(cmd_state == 2){
           // std::cout <<  "   STATE: STOP" << std::endl;
           stop(cmd_start_time);
         }
@@ -325,7 +327,6 @@ public:
 
   }
 
-
   int detect_command()
   {
     SNDFILE *sf;
@@ -406,11 +407,101 @@ public:
     return res;
   }
 
-  void create_models(){
+  int analyze_prosody_with_models()
+  {
+    std::cout << "    analyze_prosody_with_models()" << std::endl;
+    int nargs = 3;
+    char* args[] = {"", "predict", "predict_wrapper"};
+    std::cout << "  call_python_method" << std::endl;
+    PyObject *sysPath, *programName, *pName, *pModule, *pDict, *pFunc, *pValue, *pArgs;
+    int res;
+
+    PySys_SetArgv(nargs, args);
+
+    // Load the module object
+    // pModule = PyImport_Import(pName);
+    std::cout << "    Module: " << args[1] << std::endl;
+    pModule = PyImport_ImportModule(args[1]);
+    std::cout << "    pModule:  " << pModule << std::endl;
+
+    if(pModule == 0){
+      std::cout << "    Could not find the python module." << std::endl;
+      std::cout << "    Please run this node from the module's directory." << std::endl;
+      // Clean up
+      Py_DECREF(pModule);
+
+      return -1;
+    }
+
+    pDict = PyModule_GetDict(pModule);
+    pFunc = PyDict_GetItemString(pDict, args[2]);
+    std::cout << "    Calling \"" << args[2] << "()\":" << std::endl;
+    if (PyCallable_Check(pFunc)) 
+    {
+        pArgs = PyTuple_New(1);
+        PyTuple_SetItem(pArgs, 1, pModels);    
+
+      // Prepare the argument list for the call
+      pValue = PyObject_CallObject(pFunc, pArgs);
+      if (pValue != NULL) 
+      {
+        res = PyLong_AsLong(pValue);
+        std::cout << "    pValue: " << pValue << std::endl;
+        std::cout << "    Result: " << res << std::endl;
+        Py_DECREF(pValue);
+      }
+      else 
+      {
+        PyErr_Print();
+      }
+    }
+
+    // Clean up
+    // Py_DECREF(pFunc);
+    // Py_DECREF(pDict);
+    Py_DECREF(pModule);
+    return res;
+  }
+
+  int create_models(){
     std::cout << "    create_models()" << std::endl;
     int nargs = 3;
     char* args[] = {"", "createModels", "createModels"};
-    call_python_method(nargs, args);
+    std::cout << "  call_python_method" << std::endl;
+    PyObject *sysPath, *programName, *pName, *pModule, *pDict, *pFunc, *pValue, *pArgs;
+    int res;
+
+    PySys_SetArgv(nargs, args);
+
+    // Load the module object
+    // pModule = PyImport_Import(pName);
+    std::cout << "    Module: " << args[1] << std::endl;
+    pModule = PyImport_ImportModule(args[1]);
+    std::cout << "    pModule:  " << pModule << std::endl;
+
+    if(pModule == 0){
+      std::cout << "    Could not find the python module." << std::endl;
+      std::cout << "    Please run this node from the module's directory." << std::endl;
+      // Clean up
+      Py_DECREF(pModule);
+
+      return -1;
+    }
+
+    pDict = PyModule_GetDict(pModule);
+    pFunc = PyDict_GetItemString(pDict, args[2]);
+    std::cout << "    Calling \"" << args[2] << "()\":" << std::endl;
+    if (PyCallable_Check(pFunc)) 
+    {
+      // Prepare the argument list for the call
+      pModels = PyObject_CallObject(pFunc, NULL);
+    }
+
+    // Clean up
+    // Py_DECREF(pFunc);
+    // Py_DECREF(pDict);
+    Py_DECREF(pModule);
+    return 1;
   }
 
 

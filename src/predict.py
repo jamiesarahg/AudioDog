@@ -1,5 +1,6 @@
 from sklearn.mixture import GMM
 import CleaningData as cd
+import createModels as cm
 import trained_dict as td
 import librosa
 
@@ -35,11 +36,16 @@ def predict(filename, modelsDict):
 
   return emotions.index(bestEmotion)
 
-
-def predict_wrapper():
+def predict_wrapper(modelsdict):
   filename = "../wav/sample.wav"
-  predict(filename, td.dictionary)
+  predict(filename, modelsdict)
+
+def create_models_then_predict():
+  print "Creating model dictionaries..."
+  modelsdict = cm.createModels()
+  print "Models Dictionary:", modelsdict
+  predict_wrapper(modelsdict)
 
 
 if __name__ == '__main__':
-  predict_wrapper()
+  create_models_then_predict()
