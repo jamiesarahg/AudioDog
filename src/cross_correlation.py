@@ -9,17 +9,90 @@ import math
 from scikits.audiolab import wavread
 
 DEBUG = True
+test = 1;
 
 #  DEBUGGING VARIABLES
 test_1 = numpy.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0, 0])
 test_2 = numpy.array([0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 6, 6, 8, 9, 6, 6, 6, 6, 3, 3, 3])
-mic_dist = .05 # Distance between microphones in meters
+mic_dist = .30 # Distance between microphones in meters
+
+import wave
+import struct
+
 
 class WaveReader(object):
 	def __init__(self, num_chunks):
 		self.num_chunks = num_chunks
-		self.samp_rate = 8000;
+		self.samp_rate = 0;
 		self.num_frames = 0;
+
+	def pcm_channels(self, wave_file):
+		"""Given a file-like object or file path representing a wave file,
+			decompose it into its constituent PCM data streams.
+
+			Input: A file like object or file path
+			Output: A list of lists of integers representing the PCM coded data stream channels
+				and the sample rate of the channels (mixed rate channels not supported)
+		"""
+		chunked_audio = []
+		ch_0 = []
+		ch_1 = []
+		stream = wave.open(wave_file,"rb")
+
+		self.num_channels = stream.getnchannels()
+		self.samp_rate = stream.getframerate()
+		self.sample_width = stream.getsampwidth()
+		self.num_frames = stream.getnframes()
+
+		raw_data = stream.readframes( self.num_frames ) # Returns byte data
+		stream.close()
+
+		total_samples = self.num_frames * self.num_channels
+
+		print "sample_width: ", self.sample_width
+		if self.sample_width == 1: 
+			fmt = "%iB" % total_samples # read unsigned chars
+		elif self.sample_width == 2:
+			fmt = "%if" % (total_samples/2) # read signed 2 byte shorts
+		else:
+			raise ValueError("Only supports 8 and 16 bit audio formats.")
+
+		integer_data = struct.unpack(fmt, raw_data)
+		del raw_data # Keep memory tidy (who knows how big it might be)
+
+		channels = [ [] for time in range(self.num_channels) ]
+
+		for index, value in enumerate(integer_data):
+			bucket = index % self.num_channels
+			channels[bucket].append(value)
+
+		# return channels
+		raw_0 = channels[0]
+		raw_1 = channels[1]
+
+		self.num_frames = len(raw_0)
+		self.duration = self.num_frames/self.samp_rate
+
+		chunk_len = self.num_frames / self.num_chunks;
+		for c in range(0, self.num_chunks):
+			chunk = []
+
+			start = c*chunk_len
+			end = (c+1)*chunk_len
+
+			chunk_ch_0 = raw_0[start:end]
+			chunk_ch_1 = raw_1[start:end]
+
+			ch_0.append(chunk_ch_0)
+			ch_1.append(chunk_ch_1)
+
+			chunk = [chunk_ch_0, chunk_ch_1]
+			chunked_audio.append(chunk)
+
+
+
+		return [self.samp_rate, chunked_audio]
+
 
 	def read(self, filename):
 		rate = 0;
@@ -30,11 +103,11 @@ class WaveReader(object):
 		print "reading ", filename
 		[rate, w] = wavfile.read(filename)
 		print "		rate:", rate
-		print "		result:", w
+		# print "		result:", w
 		raw_0 = w[:, 0]
 		raw_1 = w[:, 1]
-		print "raw_0:", raw_0
-		print "raw_1:", raw_1
+		# print "raw_0:", raw_0
+		# print "raw_1:", raw_1
 
 		self.samp_rate = rate
 		self.num_frames = len(raw_0)
@@ -48,7 +121,7 @@ class WaveReader(object):
 			end = (c+1)*chunk_len
 
 			chunk_ch_0 = raw_0[start:end]
-			chunk_ch_1 = raw_0[start:end]
+			chunk_ch_1 = raw_1[start:end]
 
 			ch_0.append(chunk_ch_0)
 			ch_1.append(chunk_ch_1)
@@ -94,7 +167,7 @@ class AudioProcessor(object):
 
 			timeshifts.append(timeshift)
 
-		print timeshifts
+		# print timeshifts
 		return timeshifts
 
 	def calculate_timeshift(self, signals):
@@ -105,13 +178,21 @@ class AudioProcessor(object):
 		signal_a = signals[0]
 		signal_b = signals[1]
 
+		# if (test == 1):
+		# 	for i in range(0, len(signal_a)):
+		# 		print signal_a[i],", ", signal_b[i]
+		# 	global test
+		# 	test += 1
+
+
+
 		# print "len a:", len(signal_a)
 		# print "len b:", len(signal_b)
 		# print signal_a
 		# print signal_b
 
 		# # Cross correlation method
-		# # Find the max value of the correlations
+		# Find the max value of the correlations
 		# m_ab = numpy.argmax(signal.correlate(signal_a, signal_b))
 		# m_ba = numpy.argmax(signal.correlate(signal_b, signal_a))
 
@@ -120,11 +201,12 @@ class AudioProcessor(object):
 		# shift_ba = m_ba - (len(signal_a)-1)
 		# # return [shift_ab, shift_ba]
 
+		# print "crosscorr shifts:", [shift_ab, shift_ba]
 		# shift = (shift_ba + (-1*shift_ab)) / 2
-		# print "shift:", shift
-		# # return shift
+		# # print "shift:", shift
+		# return shift
 
-		# # FFT Method A ----------------------------------
+		# FFT Method A ----------------------------------
 		# print "FFT METHOD A"
 		A = fftpack.fft(signal_a)
 		B = fftpack.fft(signal_b)
@@ -133,20 +215,9 @@ class AudioProcessor(object):
 		maxA = ( numpy.argmax(numpy.abs(fftpack.ifft(Ar*B))) )
 		maxB = ( numpy.argmax(numpy.abs(fftpack.ifft(A*Br))) )
 		shifts = [maxA, maxB]
-		print "maxes:", maxA, ", ", maxB
+		print "FFT shift:", shifts
 		minshift = numpy.argmin(shifts)
 		timeshift = shifts[minshift]
-
-		# # FFT Method B
-		# print "FFT METHOD B"
-		# af = fftpack.fft(signal_a)
-		# bf = fftpack.fft(signal_b)
-		# ca = fftpack.ifft(af * conj(bf))
-		# cb = fftpack.ifft(bf * conj(af))
-
-		# time_shifta = numpy.argmax(abs(ca))
-		# time_shiftb = numpy.argmax(abs(cb))
-		# print time_shifta, ",", time_shiftb
 
 		return timeshift
 
@@ -208,8 +279,8 @@ class Localizer(object):
 
 		tdoa = self.samp_intvl * timeshift # Time difference of arrival
 		sig_dist = tdoa * self.c
-		# print "		tdoa:", tdoa
-		# print "		signal distance:", sig_dist
+		print "		tdoa:", tdoa
+		print "		signal distance:", sig_dist
 
 		if (sig_dist != 0):
 			angle = math.atan( 
@@ -223,21 +294,25 @@ class Localizer(object):
 		# c = 340.29 m / s
 
 def run():
-	filename = "../wav/sample.wav"
+	filename = "test_sample.wav" 
 	num_chunks = 20
 	chunked_audio = []
 
+	
+
 	wr = WaveReader(num_chunks)
-	[rate, chunked_audio] = wr.read(filename)
+	[rate, chunked_audio] = wr.pcm_channels(filename)
+	# [rate, chunked_audio] = wr.read(filename)
+	print "rate:", rate
 	# print "chunked_audio: ", chunked_audio
 
 	ap = AudioProcessor(num_chunks, chunked_audio)
 	lc = Localizer(rate, mic_dist)
 
 	timeshifts = ap.process_signals()
-	angle = lc.calculate_angle(timeshifts)
-	print "			Angle: ", angle
-	return angle * 1000
+	# angle = lc.calculate_angle(timeshifts)
+	# print "			Angle: ", angle
+	# return angle * 1000
 
 	
 if __name__ == '__main__':

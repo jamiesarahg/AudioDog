@@ -56,7 +56,7 @@ class DataIntake(object):
 
 
     y=y[5000:] 
-    print "y size:", y.size
+    # print "y size:", y.size
 
 
     #removes the time before the user speaks

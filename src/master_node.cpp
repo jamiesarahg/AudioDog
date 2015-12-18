@@ -99,6 +99,8 @@ public:
     // Misc variables
     int result_detect, result_pros, result_dir;
     signal(SIGINT, interrupt); 
+
+    target_angle = 0;
     // --------------------------------------------------------------
     
     // std::cout << "Creating models for prosody analysis." << std::endl;
@@ -144,6 +146,7 @@ public:
 
         // If an audio signal has been found, process it
         if (result_detect != -1){
+          std::cout << "COMMAND DETECTED" << std::endl;
 
           // Once audio signal has been found and saved to file, 
           // load the file, run prosody script, determine command
@@ -156,13 +159,29 @@ public:
             cmd_state = result_pros;
             awaiting_cmd = false;
             cmd_start_time = clock();
-            std::cout << "STATE: " << cmd_state << std::endl;
+            std::cout << "COMMAND PROCESSED: " << cmd_state << "(";
+
 
             // If the command was to "come", find the angle relative to src
-            if(cmd_state == 1){
-              result_dir = determine_src_dir();
-              target_angle = result_dir / 1000.0;
+            if(cmd_state == 0){
+              target_angle = 90;
+              std::cout << "COME";
             }
+            if(cmd_state == 1){
+              std::cout << "STOP";
+              
+            }
+            if(cmd_state == 2){
+              std::cout << "GOOD BOY";
+            }
+            if(cmd_state == 3){
+              std::cout << "FETCH";
+            }
+            if(cmd_state == 4){
+              std::cout << "NULL";
+            }
+
+            std::cout << ")"<< std::endl;
           }
         }
       }
@@ -172,10 +191,8 @@ public:
         if(cmd_state == 0){
           // std::cout <<  "   STATE: come" << std::endl;
           // std::cout <<  "   TARGET: " <<  target_angle << std::endl;
-          // come(cmd_start_time);
-          twist_cmds[0] = 0.0;
-          twist_cmds[1] = 0.0;
-          awaiting_cmd = true;
+          come(cmd_start_time);
+          
         }
 
         // Stop
@@ -217,20 +234,35 @@ public:
   }
 
   void come(int cmd_start_time){
+    int turn_speed = 1;
     float angle_err;
     float new_twist_cmds[2];
 
-    // determine difference between current angle and target angle.
-    angle_err = calc_angle_error();
+    float dt;
+    dt = (clock() - cmd_start_time)/CLOCKS_PER_MS;
+    // 90 degrees = 1.62 s
 
-    // determine turn speed (proportional)
-    long turn_speed;
-    turn_speed = (long)angle_err / 90.0; // Scales 0 - 90 to 0 - 1
-    
+    //calculate time needed
+    float ms_per_degree = 1620.0 / 90.0;  // ms to turn 90 degrees right 
+    float time_to_rotate = abs(target_angle)*ms_per_degree;
 
-    // std::copy(new_twist_cmds, new_twist_cmds+2, twist_cmds);
-    twist_cmds[0] = 0.0;
-    twist_cmds[1] = turn_speed;
+    twist_cmds[0] = 0;
+
+    if (target_angle < 1){
+      turn_speed = -1;
+    }
+    else{
+      turn_speed = 1;
+    }
+
+    if(dt < time_to_rotate){
+      twist_cmds[1] = turn_speed;
+    }
+    else
+    {
+      twist_cmds[1] = 0;
+      awaiting_cmd = true;
+    }
   }
 
   void good_boy(int cmd_start_time){
@@ -312,11 +344,11 @@ public:
     else {
       isOdd = (int)floor(dt/1000) % 2;
       if (!isOdd){
-        twist_cmds[0] = 0.4;          // the x (forward) speed (between 0 - 1)
+        twist_cmds[0] = 0.2;          // the x (forward) speed (between 0 - 1)
         twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
       } 
       else {
-        twist_cmds[0] = -0.4;          // the x (forward) speed (between 0 - 1)
+        twist_cmds[0] = -0.2;          // the x (forward) speed (between 0 - 1)
         twist_cmds[1] = 0.0;          // the z (angular) speed (0 - 1)
       }
     }
@@ -366,7 +398,10 @@ public:
     // std::cout << "Saved file to '../wav/sample.wav'" << std::endl;
     while (((num = sf_read_float (sf, incoming_section, num_items)) > 0) &&
         (item_count < item_goal)) {
-      std::cout << "num: " << num << std::endl; 
+      if (num == 0){
+        std::cout << "ERR: NUM = 0" << std::endl;
+      }
+      // std::cout << "num: " << num << std::endl; 
       for (int in_index = 0; in_index < num; in_index++) {
         record = (buffer.push(incoming_section[in_index])) ? true : record;
         if (record) {
@@ -384,11 +419,9 @@ public:
         }
       }
     }
-    std::cout << "frames: " << frames <<  
     sf_close(out);
     delete [] incoming_section;
     delete [] outgoing_section;
-    printf("Done.\n");
     return 0;
   }
 
