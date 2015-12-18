@@ -1,3 +1,3 @@
 def run():
-	print "			hello world"
+	print "			hello world!"
 	return 1
