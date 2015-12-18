@@ -68,7 +68,7 @@ public:
   {
     nh_ = nh;
     cmd_vel_pub_ = nh_.advertise<geometry_msgs::Twist>("/cmd_vel", 1);
-    cmd_file = "../wav/sample.wav";
+    cmd_file = "sample.wav";
     sf = soundfile;
     info = infostruct;
   }
@@ -362,7 +362,7 @@ public:
     when appropriate.
     */
 
-    out = sf_open("../wav/sample.wav",SFM_WRITE, &info);
+    out = sf_open("sample.wav",SFM_WRITE, &info);
     // std::cout << "Saved file to '../wav/sample.wav'" << std::endl;
     while (((num = sf_read_float (sf, incoming_section, num_items)) > 0) &&
         (item_count < item_goal)) {

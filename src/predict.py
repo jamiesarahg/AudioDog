@@ -43,7 +43,7 @@ def predict(filename, modelsDict):
 
 def predict_wrapper():
   #change this filname
-  filename = "../wav/sample.wav"
+  filename = "sample.wav"
   dictionary = pickle.load(open( "save.p", "rb" ) )
   return predict(filename, dictionary)
 
