@@ -366,6 +366,7 @@ public:
     // std::cout << "Saved file to '../wav/sample.wav'" << std::endl;
     while (((num = sf_read_float (sf, incoming_section, num_items)) > 0) &&
         (item_count < item_goal)) {
+      std::cout << "num: " << num << std::endl; 
       for (int in_index = 0; in_index < num; in_index++) {
         record = (buffer.push(incoming_section[in_index])) ? true : record;
         if (record) {
