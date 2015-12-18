@@ -49,39 +49,45 @@ class DataIntake(object):
 
     # remove the first 5000 frames
 
-    #used for debugging the cropping of wav file
+    # used for debugging the cropping of wav file
     # plot.subplot(2, 1, 1)
     # plot.plot(y)
     # plot.title(filename)
 
 
     y=y[5000:] 
+    print "y size:", y.size
 
 
     #removes the time before the user speaks
+    if (y.size == 0):
+      print "ERR: SIZE OF Y IS ZERO"
+      return y, sr
+
     for j in range(y.size):
       if y[j]> .18 or y[j]< -.15: #waits for the volume to go over .3
           break #stops checking! Makes sure it doesn't continue to clip
 
     #removes time after user finishes speaking
     for i in reversed(range(y.size)):
-      if y[i]> .15 or y[i] < -.15: #waits for the volume to go over .3, checking in reverse order
+      if y[i]> .18 or y[i] < -.15: #waits for the volume to go over .3, checking in reverse order
         y = y[:i+2000] #crop audio clip to 1000 places after the volume went below .3
         break #stops checking! Makes sure it doesn't continue to clip
 
-    y = y[j-1000:] #crop audio clip to 1000 places before the volume was determined to go above .3
-
-
-    self.y = y
-    self.sr = sr
-
-    return y, sr
+    if (y.size != 0):
+      y = y[j-1000:] #crop audio clip to 1000 places before the volume was determined to go above .3
 
     # used for debugging of wav file
     # plot.subplot(2, 1, 2)
     # plot.plot(y)
     # plot.title(str(j+5000)+'/'+str(i+5000))
     # plot.show()
+
+    self.y = y
+    self.sr = sr
+
+    return y, sr
+
 
   def mfccExtraction(self, emotion, dataType): 
     '''  Extracts MFCCs from audio file

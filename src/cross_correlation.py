@@ -18,7 +18,7 @@ mic_dist = .05 # Distance between microphones in meters
 class WaveReader(object):
 	def __init__(self, num_chunks):
 		self.num_chunks = num_chunks
-		self.samp_rate = 0;
+		self.samp_rate = 8000;
 		self.num_frames = 0;
 
 	def read(self, filename):
@@ -27,9 +27,14 @@ class WaveReader(object):
 		ch_0 = []
 		ch_1 = []
 
+		print "reading ", filename
 		[rate, w] = wavfile.read(filename)
+		print "		rate:", rate
+		print "		result:", w
 		raw_0 = w[:, 0]
 		raw_1 = w[:, 1]
+		print "raw_0:", raw_0
+		print "raw_1:", raw_1
 
 		self.samp_rate = rate
 		self.num_frames = len(raw_0)
@@ -82,8 +87,8 @@ class AudioProcessor(object):
 
 		for c in range(0, self.num_chunks):
 			# print "c:", c
-			# thischunk = self.chunked_audio[c] 
-			thischunk = [test_1, test_2]
+			thischunk = self.chunked_audio[c] 
+			# thischunk = [test_1, test_2]
 			timeshift = self.calculate_timeshift(thischunk)
 			# print "timeshift:", timeshift
 
@@ -128,7 +133,7 @@ class AudioProcessor(object):
 		maxA = ( numpy.argmax(numpy.abs(fftpack.ifft(Ar*B))) )
 		maxB = ( numpy.argmax(numpy.abs(fftpack.ifft(A*Br))) )
 		shifts = [maxA, maxB]
-		# print "maxes:", maxA, ", ", maxB
+		print "maxes:", maxA, ", ", maxB
 		minshift = numpy.argmin(shifts)
 		timeshift = shifts[minshift]
 
@@ -218,12 +223,13 @@ class Localizer(object):
 		# c = 340.29 m / s
 
 def run():
-	filename = "../wav/test_for_antonia.wav"
+	filename = "../wav/sample.wav"
 	num_chunks = 20
 	chunked_audio = []
 
 	wr = WaveReader(num_chunks)
 	[rate, chunked_audio] = wr.read(filename)
+	# print "chunked_audio: ", chunked_audio
 
 	ap = AudioProcessor(num_chunks, chunked_audio)
 	lc = Localizer(rate, mic_dist)

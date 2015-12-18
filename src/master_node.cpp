@@ -47,7 +47,7 @@ private:
   std::string cmd_file;       // Filename of audio file to process
   float twist_cmds[2];        // movement commands {forward, angular}
   bool awaiting_cmd;          // true: command found, acting; false: listening
-  int cmd_state;              // 0: still, 1: follow, 2: "stop", 
+  int cmd_state;              // 0: still, 1: come, 2: "stop", 
                               // 3: good boy, 4: fetch
  
   // Time variables
@@ -141,11 +141,9 @@ public:
       if (awaiting_cmd){
         std::cout << "AWAITING CMD" << std::endl;
         result_detect = detect_command(sf, info);
-        // result_detect = 1;
 
         // If an audio signal has been found, process it
         if (result_detect != -1){
-          // std::cout << "    Prosody-based command detected." << std::endl;
 
           // Once audio signal has been found and saved to file, 
           // load the file, run prosody script, determine command
@@ -160,7 +158,7 @@ public:
             cmd_start_time = clock();
             std::cout << "STATE: " << cmd_state << std::endl;
 
-            // If the command was to "follow", find the angle relative to src
+            // If the command was to "come", find the angle relative to src
             if(cmd_state == 1){
               result_dir = determine_src_dir();
               target_angle = result_dir / 1000.0;
@@ -170,33 +168,36 @@ public:
       }
       else{
         // std::cout << "STATE:" << cmd_state << std::endl;
-        //Follow
-        if(cmd_state == 1){
-          // std::cout <<  "   STATE: FOLLOW" << std::endl;
+        //come
+        if(cmd_state == 0){
+          // std::cout <<  "   STATE: come" << std::endl;
           // std::cout <<  "   TARGET: " <<  target_angle << std::endl;
-          follow(cmd_start_time);
+          // come(cmd_start_time);
+          twist_cmds[0] = 0.0;
+          twist_cmds[1] = 0.0;
+          awaiting_cmd = true;
         }
 
         // Stop
-        else if(cmd_state == 2){
+        else if(cmd_state == 1){
           // std::cout <<  "   STATE: STOP" << std::endl;
           stop(cmd_start_time);
         }
 
         // Good Boy
-        else if(cmd_state == 3){
+        else if(cmd_state == 2){
           // std::cout <<  "   STATE: GOODBOY" << std::endl;
           good_boy(cmd_start_time);
         }
 
         // Fetch
-        else if(cmd_state == 4){
+        else if(cmd_state == 3){
           // std::cout <<  "   STATE: FETCH" << std::endl;
           fetch(cmd_start_time);
         }
 
         // Still (no command)
-        else if(cmd_state == 0){
+        else if(cmd_state == 4){
           // std::cout <<  "   STATE: 0 (STILL)" << std::endl;
           twist_cmds[0] = 0.0;
           twist_cmds[1] = 0.0;
@@ -215,7 +216,7 @@ public:
     return true;
   }
 
-  void follow(int cmd_start_time){
+  void come(int cmd_start_time){
     float angle_err;
     float new_twist_cmds[2];
 
@@ -343,22 +344,6 @@ public:
     int f,sr,c;
     int i,j;
     SNDFILE *out;
-<<<<<<< HEAD
-
-=======
-    
-    /* Open stdin to capture WAV data. */
-    info.format = SF_FORMAT_WAV;
-    sf = sf_open_fd(0, SFM_READ, &info, true);
-    if (sf == NULL)
-      {
-      std::cout << "Failed to read stdin." << std::endl;
-      exit(-1);
-      }
-    else{
-      std::cout << sf << std::endl;
-      }
->>>>>>> d01fa1212a11070d9b4928f041754da392687046
     /* Print some of the info, and figure out how much data to read. */
     sf_count_t frames = 176400*2;
     int item_goal = 176400*4;
@@ -378,7 +363,7 @@ public:
     */
 
     out = sf_open("../wav/sample.wav",SFM_WRITE, &info);
-    std::cout << "Saved file to '../wav/sample.wav'" << std::endl;
+    // std::cout << "Saved file to '../wav/sample.wav'" << std::endl;
     while (((num = sf_read_float (sf, incoming_section, num_items)) > 0) &&
         (item_count < item_goal)) {
       for (int in_index = 0; in_index < num; in_index++) {
@@ -398,10 +383,11 @@ public:
         }
       }
     }
+    std::cout << "frames: " << frames <<  
     sf_close(out);
     delete [] incoming_section;
     delete [] outgoing_section;
-    printf("done\n");
+    printf("Done.\n");
     return 0;
   }
 
@@ -559,7 +545,7 @@ public:
 
     // Load the module object
     // pModule = PyImport_Import(pName);
-    // std::cout << "    Module: " << argv[1] << std::endl;
+    std::cout << "    Module: " << argv[1] << std::endl;
     pModule = PyImport_ImportModule(argv[1]);
     // std::cout << "    pModule:  " << pModule << std::endl;
 

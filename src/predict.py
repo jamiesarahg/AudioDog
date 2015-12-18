@@ -46,3 +46,6 @@ def predict_wrapper():
   filename = "../wav/sample.wav"
   dictionary = pickle.load(open( "save.p", "rb" ) )
   return predict(filename, dictionary)
+
+if __name__ == '__main__':
+  predict_wrapper()
