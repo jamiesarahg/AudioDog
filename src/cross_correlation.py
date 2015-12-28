@@ -21,18 +21,31 @@ import struct
 
 
 class WaveReader(object):
+	'''
+	Loads a wav file, and converts it's contents from PCM to float / int format.
+	'''
 	def __init__(self, num_chunks):
 		self.num_chunks = num_chunks
 		self.samp_rate = 0;
 		self.num_frames = 0;
 
 	def pcm_channels(self, wave_file):
-		"""Given a file-like object or file path representing a wave file,
+		"""
+		Read method #1 - uses a modified pcm conversion script found online, 
+		converts PCM data to floats.
+
+		Saves the interger lists in chunks rather than one list per channel.
+		The chunks allow for multiple timeshift results.
+
+
+			Given a file-like object or file path representing a wave file,
 			decompose it into its constituent PCM data streams.
 
 			Input: A file like object or file path
 			Output: A list of lists of integers representing the PCM coded data stream channels
 				and the sample rate of the channels (mixed rate channels not supported)
+		
+
 		"""
 		chunked_audio = []
 		ch_0 = []
@@ -73,6 +86,9 @@ class WaveReader(object):
 		self.num_frames = len(raw_0)
 		self.duration = self.num_frames/self.samp_rate
 
+
+
+		# Chunk the data
 		chunk_len = self.num_frames / self.num_chunks;
 		for c in range(0, self.num_chunks):
 			chunk = []
@@ -95,6 +111,11 @@ class WaveReader(object):
 
 
 	def read(self, filename):
+		'''
+		Read method #2, makes use of scipy's io module to convert wav files.
+		Saves the interger lists in chunks rather than one list per channel.
+		The chunks allow for multiple timeshift results.
+		'''
 		rate = 0;
 		chunked_audio = []
 		ch_0 = []
@@ -103,16 +124,14 @@ class WaveReader(object):
 		print "reading ", filename
 		[rate, w] = wavfile.read(filename)
 		print "		rate:", rate
-		# print "		result:", w
 		raw_0 = w[:, 0]
 		raw_1 = w[:, 1]
-		# print "raw_0:", raw_0
-		# print "raw_1:", raw_1
 
 		self.samp_rate = rate
 		self.num_frames = len(raw_0)
 		self.duration = self.num_frames/rate
 
+		# Chunk the data
 		chunk_len = self.num_frames / self.num_chunks;
 		for c in range(0, self.num_chunks):
 			chunk = []
@@ -129,26 +148,13 @@ class WaveReader(object):
 			chunk = [chunk_ch_0, chunk_ch_1]
 			chunked_audio.append(chunk)
 
-
-		# print "scipy rate:", rate
-		# print "scipy len:", self.num_frames
-		# print "chunk_len:", chunk_len
-		# print "duration:", self.duration
-		
-		# print "scipy ch0 :", raw_0
-		# print "scipy ch1 :", raw_1
-
-		# print "scipy ch_0 :", ch_0
-		# print "scipy ch_1 :", ch_1
-		# print "chunked_audio:", chunked_audio
-
 		return [rate, chunked_audio]
 
 
 
 class AudioProcessor(object):
 	'''
-	Calculates the timeshift between two audio signals, and aligns them. 
+	Calculates the timeshift between two audio signals. 
 	'''
 
 	def __init__(self, num_chunks, chunked_audio):
@@ -156,14 +162,16 @@ class AudioProcessor(object):
 		self.chunked_audio = chunked_audio
 
 	def process_signals(self):
+		'''
+		Calculates the timeshifts of each chunk, then sends the
+		timeshift results through the angle calculation algorithm.
+		'''
 		timeshifts = [] 			# timeshifts
 
 		for c in range(0, self.num_chunks):
 			# print "c:", c
 			thischunk = self.chunked_audio[c] 
-			# thischunk = [test_1, test_2]
 			timeshift = self.calculate_timeshift(thischunk)
-			# print "timeshift:", timeshift
 
 			timeshifts.append(timeshift)
 
@@ -172,42 +180,12 @@ class AudioProcessor(object):
 
 	def calculate_timeshift(self, signals):
 		'''
-		Calculates timeshift (in units, not seconds) by cross-correlating
-		the two audio signals.
+		Calculates timeshift (in units, not seconds) by 
+		calculating the phase shift between the two audio signals.
 		'''
 		signal_a = signals[0]
 		signal_b = signals[1]
 
-		# if (test == 1):
-		# 	for i in range(0, len(signal_a)):
-		# 		print signal_a[i],", ", signal_b[i]
-		# 	global test
-		# 	test += 1
-
-
-
-		# print "len a:", len(signal_a)
-		# print "len b:", len(signal_b)
-		# print signal_a
-		# print signal_b
-
-		# # Cross correlation method
-		# Find the max value of the correlations
-		# m_ab = numpy.argmax(signal.correlate(signal_a, signal_b))
-		# m_ba = numpy.argmax(signal.correlate(signal_b, signal_a))
-
-		# # Convert from correlation max index to signal index
-		# shift_ab = m_ab - (len(signal_b)-1)
-		# shift_ba = m_ba - (len(signal_a)-1)
-		# # return [shift_ab, shift_ba]
-
-		# print "crosscorr shifts:", [shift_ab, shift_ba]
-		# shift = (shift_ba + (-1*shift_ab)) / 2
-		# # print "shift:", shift
-		# return shift
-
-		# FFT Method A ----------------------------------
-		# print "FFT METHOD A"
 		A = fftpack.fft(signal_a)
 		B = fftpack.fft(signal_b)
 		Ar = -A.conjugate()
@@ -215,7 +193,6 @@ class AudioProcessor(object):
 		maxA = ( numpy.argmax(numpy.abs(fftpack.ifft(Ar*B))) )
 		maxB = ( numpy.argmax(numpy.abs(fftpack.ifft(A*Br))) )
 		shifts = [maxA, maxB]
-		print "FFT shift:", shifts
 		minshift = numpy.argmin(shifts)
 		timeshift = shifts[minshift]
 
@@ -273,6 +250,11 @@ class Localizer(object):
 
 
 	def calculate_angle(self, timeshifts):
+		'''
+		Calculate the time difference of arrival by multiplying the shift
+		(number of samples) by the sample widths.
+		Uses this TDOA to calculate the angle of the source.
+		'''
 		# take mode
 		angle = 0;
 		timeshift = numpy.mean(timeshifts)
